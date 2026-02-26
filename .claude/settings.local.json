@@ -4,7 +4,11 @@
       "Bash(git mv \"src/components/UI\" \"src/components/ui_temp\")",
       "Bash(git mv \"src/components/ui_temp\" \"src/components/ui\")",
       "Bash(git mv src/components/Dashboard src/components/dashboard_temp)",
-      "Bash(git mv src/components/dashboard_temp src/components/dashboard)"
+      "Bash(git mv src/components/dashboard_temp src/components/dashboard)",
+      "Bash(git mv src/components/Home src/components/home_temp)",
+      "Bash(git mv src/components/home_temp src/components/home)",
+      "Bash(git mv src/components/Shared src/components/shared_temp)",
+      "Bash(git mv src/components/shared_temp src/components/shared)"
     ]
   }
 }
