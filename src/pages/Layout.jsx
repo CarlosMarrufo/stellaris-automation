@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { createPageUrl } from './utils';
+import { createPageUrl } from '../utils';
 import { Menu, X, ChevronDown } from 'lucide-react';
 
 export default function Layout({ children, currentPageName }) {
@@ -33,6 +33,13 @@ export default function Layout({ children, currentPageName }) {
 
             {/* Desktop Menu */}
             <div className="hidden lg:flex items-center space-x-1">
+              <Link
+                to={createPageUrl('ClientLogin')}
+                className="px-4 py-2 rounded-lg transition-colors text-slate-300 hover:text-white hover:bg-slate-800"
+              >
+                Log In
+              </Link>
+              
               <Link
                 to={createPageUrl('Home')}
                 className={`px-4 py-2 rounded-lg transition-colors ${
@@ -71,6 +78,14 @@ export default function Layout({ children, currentPageName }) {
         {mobileMenuOpen && (
           <div className="lg:hidden border-t border-slate-800 bg-slate-900">
             <div className="px-4 py-4 space-y-2">
+              <Link
+                to={createPageUrl('ClientLogin')}
+                className="block px-4 py-3 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Log In
+              </Link>
+              
               <Link
                 to={createPageUrl('Home')}
                 className="block px-4 py-3 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"

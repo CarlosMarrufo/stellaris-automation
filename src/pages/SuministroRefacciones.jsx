@@ -150,16 +150,16 @@ export default function SuministroRefacciones() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <a
-              href="mailto:refacciones@robotech.com"
+              href="mailto:ventas@stellarisautomation.com"
               className="inline-flex items-center justify-center px-8 py-4 bg-gradient-to-r from-slate-700 to-slate-800 text-white rounded-xl hover:from-slate-800 hover:to-slate-900 transition-all font-semibold shadow-lg"
             >
               Consultar Disponibilidad
             </a>
             <a
-              href="tel:+528112345678"
+              href="tel:+528183519650"
               className="inline-flex items-center justify-center px-8 py-4 bg-white text-slate-900 rounded-xl hover:bg-slate-50 transition-all font-semibold border-2 border-slate-300"
             >
-              Llamar: (81) 1234-5678
+              Llamar: (81) 8351-9650
             </a>
           </div>
         </div>

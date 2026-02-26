@@ -57,7 +57,7 @@ const services = [
 
 export default function ServicesGrid() {
   return (
-    <div id="servicios" className="py-20 bg-white">
+    <div id="servicios" className="py-20 bg-white"> 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-900 mb-4">

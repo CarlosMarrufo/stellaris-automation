@@ -120,7 +120,7 @@ export default function Diagnosticos() {
             Un diagnóstico profesional le proporciona la información que necesita para tomar decisiones informadas sobre su flota robótica.
           </p>
           <a
-            href="mailto:soporte@robotech.com"
+            href="mailto:ventas@stellarisautomation.com"
             className="inline-flex items-center justify-center px-8 py-4 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl hover:from-purple-600 hover:to-purple-700 transition-all font-semibold shadow-lg shadow-purple-500/30"
           >
             Solicitar Diagnóstico

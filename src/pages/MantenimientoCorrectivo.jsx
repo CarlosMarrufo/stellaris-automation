@@ -135,13 +135,13 @@ export default function MantenimientoCorrectivo() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <a
-              href="tel:+528112345678"
+              href="tel:+528183519650"
               className="inline-flex items-center justify-center px-8 py-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl hover:from-orange-600 hover:to-orange-700 transition-all font-semibold shadow-lg shadow-orange-500/30"
             >
-              Llamar Urgente: (81) 1234-5678
+              Llamar Urgente: (81) 8351-9650
             </a>
             <a
-              href="mailto:soporte@robotech.com"
+              href="mailto:ventas@stellarisautomation.com"
               className="inline-flex items-center justify-center px-8 py-4 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all font-semibold"
             >
               Email de Soporte

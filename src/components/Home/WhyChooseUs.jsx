@@ -59,13 +59,13 @@ export default function WhyChooseUs() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <a
-              href="tel:+528112345678"
+              href="tel:+528183519650"
               className="inline-flex items-center justify-center px-8 py-4 bg-white text-slate-900 rounded-xl hover:bg-slate-100 transition-all font-semibold shadow-xl"
             >
               Llamar Ahora
             </a>
             <a
-              href="mailto:soporte@robotech.com"
+              href="mailto:ventas@stellarisautomation.com"
               className="inline-flex items-center justify-center px-8 py-4 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all font-semibold border-2 border-white/20"
             >
               Enviar Email

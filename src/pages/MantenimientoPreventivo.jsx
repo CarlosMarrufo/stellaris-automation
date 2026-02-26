@@ -37,6 +37,39 @@ export default function MantenimientoPreventivo() {
       idealClient: 'Plantas automotrices, líneas de soldadura, aplicaciones de alta precisión, empresas con turnos continuos (24/7).',
       criticality: 'Alta',
       model: 'Contrato trimestral o cuatrimestral con precio fijo por robot'
+    },
+    {
+      title: 'Preventivo Crítico',
+      problem: 'Robots que son cuello de botella en la producción, donde cualquier minuto de paro tiene impacto económico severo y riesgo de incumplimiento con clientes finales.',
+      includes: [
+        'Todo lo del Preventivo Avanzado',
+        'Análisis predictivo de componentes mecánicos (reductores, rodamientos)',
+        'Termografía de tarjetas electrónicas',
+        'Respaldo completo de programas y parámetros',
+        'Verificación de sistemas de seguridad',
+        'Plan de contingencia documentado',
+        'Ventana de servicio en horario no productivo (fines de semana/turnos nocturnos)'
+      ],
+      differentiator: 'Enfoque de "cero sorpresas" con análisis predictivo que anticipa reemplazos necesarios con semanas de anticipación, permitiendo programar intervenciones sin afectar producción.',
+      idealClient: 'Plantas Tier 1 automotriz, farmacéuticas, electrónica de precisión, cualquier operación donde el robot es irremplazable en el corto plazo.',
+      criticality: 'Crítica',
+      model: 'Contrato anual premium con SLA de respuesta prioritaria incluido'
+    },
+    {
+      title: 'Preventivo Global por Planta',
+      problem: 'Plantas con múltiples robots de diferentes marcas, años y aplicaciones que necesitan un programa unificado de mantenimiento con visibilidad centralizada del estado de toda su flota robótica.',
+      includes: [
+        'Programa personalizado para cada robot según su criticidad y condición',
+        'Calendario anual coordinado con paros programados de planta',
+        'Dashboard de estado de flota con indicadores de salud por equipo',
+        'Gestión de historial técnico centralizado',
+        'Recomendaciones de presupuesto para refacciones y reemplazos mayores',
+        'Reuniones trimestrales de revisión con gerencia de mantenimiento'
+      ],
+      differentiator: 'Un solo proveedor, un solo contrato, una sola responsabilidad para toda la flota robótica, independientemente de marcas. Elimina la fragmentación de proveedores y la pérdida de información histórica.',
+      idealClient: 'Plantas con 10+ robots, grupos industriales con múltiples sitios, empresas en proceso de estandarizar su gestión de activos robóticos.',
+      criticality: 'Estratégica',
+      model: 'Contrato anual corporativo con precio por robot/mes y descuentos por volumen'
     }
   ];
 
@@ -90,7 +123,7 @@ export default function MantenimientoPreventivo() {
             Nuestros especialistas pueden evaluar su flota y recomendar el programa óptimo para su criticidad operativa y presupuesto.
           </p>
           <a
-            href="mailto:soporte@robotech.com"
+            href="mailto:ventas@stellarisautomation.com"
             className="inline-flex items-center justify-center px-8 py-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all font-semibold shadow-lg shadow-blue-500/30"
           >
             Solicitar Evaluación
