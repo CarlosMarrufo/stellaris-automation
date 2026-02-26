@@ -9,7 +9,8 @@ import { Package, AlertTriangle } from 'lucide-react';
 export default function RefaccionesTab() {
   const { data: refacciones = [], isLoading } = useQuery({
     queryKey: ['refacciones'],
-    queryFn: () => base44.entities.Refaccion.list('nombre')
+    queryFn: () => base44.entities.Refaccion.list('nombre'),
+    select: (data) => Array.isArray(data) ? data : []
   });
 
   const getStockStatus = (refaccion) => {

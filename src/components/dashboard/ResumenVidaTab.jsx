@@ -10,7 +10,8 @@ import { es } from 'date-fns/locale';
 export default function ResumenVidaTab() {
   const { data: robots = [], isLoading } = useQuery({
     queryKey: ['robots'],
-    queryFn: () => base44.entities.Robot.list('-horas_operacion')
+    queryFn: () => base44.entities.Robot.list('-horas_operacion'),
+    select: (data) => Array.isArray(data) ? data : []
   });
 
   const calcularEdadRobot = (fechaInstalacion) => {

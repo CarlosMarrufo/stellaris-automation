@@ -11,7 +11,8 @@ export default function PreciosTab() {
   
   const { data: refacciones = [], isLoading } = useQuery({
     queryKey: ['refacciones'],
-    queryFn: () => base44.entities.Refaccion.list('nombre')
+    queryFn: () => base44.entities.Refaccion.list('nombre'),
+    select: (data) => Array.isArray(data) ? data : []
   });
 
   const filteredRefacciones = refacciones.filter(r =>

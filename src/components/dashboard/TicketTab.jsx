@@ -21,7 +21,8 @@ export default function TicketTab() {
 
   const { data: robots = [] } = useQuery({
     queryKey: ['robots'],
-    queryFn: () => base44.entities.Robot.list('marca')
+    queryFn: () => base44.entities.Robot.list('marca'),
+    select: (data) => Array.isArray(data) ? data : []
   });
 
   const createTicketMutation = useMutation({

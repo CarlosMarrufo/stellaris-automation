@@ -10,7 +10,8 @@ import { es } from 'date-fns/locale';
 export default function TicketsPendientesTab() {
   const { data: tickets = [], isLoading } = useQuery({
     queryKey: ['tickets'],
-    queryFn: () => base44.entities.Ticket.list('-created_date')
+    queryFn: () => base44.entities.Ticket.list('-created_date'),
+    select: (data) => Array.isArray(data) ? data : []
   });
 
   const ticketsPendientes = tickets.filter(t => 

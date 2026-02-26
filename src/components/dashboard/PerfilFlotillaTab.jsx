@@ -11,7 +11,8 @@ import { es } from 'date-fns/locale';
 export default function PerfilFlotillaTab() {
   const { data: robots = [], isLoading } = useQuery({
     queryKey: ['robots'],
-    queryFn: () => base44.entities.Robot.list('-created_date')
+    queryFn: () => base44.entities.Robot.list('-created_date'),
+    select: (data) => Array.isArray(data) ? data : []
   });
 
   const estadoColors = {
