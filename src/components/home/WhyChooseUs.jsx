@@ -62,7 +62,7 @@ export default function WhyChooseUs() {
               href="tel:+528183519650"
               className="inline-flex items-center justify-center px-8 py-4 bg-white text-slate-900 rounded-xl hover:bg-slate-100 transition-all font-semibold shadow-xl"
             >
-              Llamar Ahora
+              Llamar Ahora!
             </a>
             <a
               href="mailto:ventas@stellarisautomation.com"
