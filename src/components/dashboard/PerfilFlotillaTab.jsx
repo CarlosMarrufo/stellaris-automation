@@ -15,11 +15,50 @@ export default function PerfilFlotillaTab() {
     select: (data) => Array.isArray(data) ? data : []
   });
 
+  
+  robots.push({
+    id: 1,
+    modelo: 'PAN-MAQ-1',
+    numero_serie_robot: 'MAQ123',
+    fuente_poder: 'PAN-FUE-1',
+    numero_serie_fuente: 'FUE123',
+    fecha_instalacion: '2026-02-26',
+    celda: 'CEL-123',
+    estado: 'operativo',
+    proximo_mantenimiento: '2027-01-01',
+    ultimo_mantenimiento: '2026-01-01',
+    horas_operacion: 39
+  }, {
+    id: 2,
+    modelo: 'PAN-MAQ-2',
+    numero_serie_robot: 'MAQ124',
+    fuente_poder: 'PAN-FUE-2',
+    numero_serie_fuente: 'FUE124',
+    fecha_instalacion: '2026-02-20',
+    celda: 'CEL-124',
+    estado: 'mantenimiento',
+    proximo_mantenimiento: null,
+    ultimo_mantenimiento: null,
+    horas_operacion: 8
+  }, {
+    id: 3,
+    modelo: 'PAN-MAQ-3',
+    numero_serie_robot: 'MAQ125',
+    fuente_poder: 'PAN-FUE-3',
+    numero_serie_fuente: 'FUE125',
+    fecha_instalacion: '2026-02-21',
+    celda: 'CEL-125',
+    estado: 'operativo',
+    proximo_mantenimiento: '2027-01-01',
+    ultimo_mantenimiento: '2027-01-02',
+    horas_operacion: 48
+  })
+
   const estadoColors = {
     operativo: 'bg-green-100 text-green-800 border-green-200',
-    mantenimiento: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-    falla: 'bg-red-100 text-red-800 border-red-200',
-    inactivo: 'bg-slate-100 text-slate-800 border-slate-200'
+    mantenimiento: 'bg-yellow-100 text-yellow-800 border-yellow-200', //REQUIERE ATENCION
+    falla: 'bg-red-100 text-red-800 border-red-200', // FALLA ACTIVA
+    inactivo: 'bg-slate-100 text-slate-800 border-slate-200' //SIN ATENCION
   };
 
   if (isLoading) {
@@ -91,17 +130,16 @@ export default function PerfilFlotillaTab() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Marca</TableHead>
                   <TableHead>Modelo</TableHead>
-                  <TableHead>Número de Serie</TableHead>
-                  <TableHead>Controlador</TableHead>
+                  <TableHead>Número de serie robot</TableHead>
                   <TableHead>Fuente de Poder</TableHead>
-                  <TableHead>Instalación</TableHead>
-                  <TableHead>Último Mtto</TableHead>
-                  <TableHead>Próximo Mtto</TableHead>
-                  <TableHead>Horas Op.</TableHead>
-                  <TableHead>Reporte</TableHead>
+                  <TableHead>Número de serie FdP</TableHead>
+                  <TableHead>Año de instalación</TableHead>
+                  <TableHead>Celda</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Próximo mantenimiento programado</TableHead>
+                  <TableHead>Último mantenimiento</TableHead>
+                  <TableHead>Horas de operación</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -113,23 +151,28 @@ export default function PerfilFlotillaTab() {
                   </TableRow>
                 ) : (
                   robots.map((robot) => (
-                    <TableRow key={robot.id}>
+                    <TableRow className="text-center py-8 text-slate-500" key={robot.id}>
+
+                      <TableCell className="font-medium">{robot.modelo}</TableCell>
+
+                      <TableCell>{robot.numero_serie_robot}</TableCell>
+
+                      <TableCell className="font-mono text-sm">{robot.fuente_poder}</TableCell>
+
+                      <TableCell className="text-sm">{robot.numero_serie_fuente || '-'}</TableCell>
+
+                      <TableCell className="text-sm">
+                        {robot.fecha_instalacion ? format(new Date(robot.fecha_instalacion), 'dd/MMM/yyyy', { locale: es }) : '-'}
+                      </TableCell>
+
+                      <TableCell className="text-sm">{robot.celda || '-'}</TableCell>
+
                       <TableCell>
                         <Badge variant="outline" className={`${estadoColors[robot.estado]} border`}>
                           {robot.estado}
                         </Badge>
                       </TableCell>
-                      <TableCell className="font-medium">{robot.marca}</TableCell>
-                      <TableCell>{robot.modelo}</TableCell>
-                      <TableCell className="font-mono text-sm">{robot.numero_serie}</TableCell>
-                      <TableCell className="text-sm">{robot.controlador || '-'}</TableCell>
-                      <TableCell className="text-sm">{robot.fuente_poder || '-'}</TableCell>
-                      <TableCell className="text-sm">
-                        {robot.fecha_instalacion ? format(new Date(robot.fecha_instalacion), 'dd/MMM/yyyy', { locale: es }) : '-'}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {robot.ultimo_mantenimiento ? format(new Date(robot.ultimo_mantenimiento), 'dd/MMM/yyyy', { locale: es }) : '-'}
-                      </TableCell>
+
                       <TableCell className="text-sm">
                         {robot.proximo_mantenimiento ? (
                           <span className={`flex items-center space-x-1 ${
@@ -140,22 +183,13 @@ export default function PerfilFlotillaTab() {
                           </span>
                         ) : '-'}
                       </TableCell>
+
+                      <TableCell className="text-sm">
+                        {robot.ultimo_mantenimiento ? format(new Date(robot.ultimo_mantenimiento), 'dd/MMM/yyyy', { locale: es }) : '-'}
+                      </TableCell>
+
                       <TableCell className="text-sm">
                         {robot.horas_operacion ? robot.horas_operacion.toLocaleString() : '-'}
-                      </TableCell>
-                      <TableCell>
-                        {robot.reporte_preventivo_url ? (
-                          <a
-                            href={robot.reporte_preventivo_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center text-blue-600 hover:text-blue-700"
-                          >
-                            <FileText className="w-4 h-4" />
-                          </a>
-                        ) : (
-                          <span className="text-slate-400">-</span>
-                        )}
                       </TableCell>
                     </TableRow>
                   ))

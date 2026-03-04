@@ -32,7 +32,7 @@ export default function HeroSection() {
             </h1>
 
             <p className="text-xl text-slate-300 leading-relaxed mb-8 max-w-2xl">
-              Mantenimiento industrial y desarrollo de nuevos proyectos de automatización. Integramos, optimizamos y damos soporte continuo para que su producción nunca se detenga.
+              Soluciones integrales en automatización industrial. Venta e integración de robots Panasonic. Mantenimiento especializado a robots de 6 ejes.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 mb-12">

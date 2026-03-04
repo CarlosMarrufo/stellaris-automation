@@ -8,7 +8,15 @@
       "Bash(git mv src/components/Home src/components/home_temp)",
       "Bash(git mv src/components/home_temp src/components/home)",
       "Bash(git mv src/components/Shared src/components/shared_temp)",
-      "Bash(git mv src/components/shared_temp src/components/shared)"
+      "Bash(git mv src/components/shared_temp src/components/shared)",
+      "Bash(git push origin master --force)",
+      "Bash(git checkout main)",
+      "Bash(xargs grep -l \"Router\\\\|Routes\\\\|Route\")",
+      "Bash(git add vercel.json)",
+      "Bash(git commit -m \"fix: add vercel.json for SPA client-side routing:*)",
+      "Bash(git push origin main)",
+      "Bash(git add src/components/dashboard/PerfilFlotillaTab.jsx src/components/dashboard/RefaccionesTab.jsx src/components/dashboard/PreciosTab.jsx src/components/dashboard/ResumenVidaTab.jsx src/components/dashboard/TicketsPendientesTab.jsx src/components/dashboard/TicketTab.jsx)",
+      "Bash(git commit -m \"fix: prevent dashboard crash when API returns non-array data:*)"
     ]
   }
 }
