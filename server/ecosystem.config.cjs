@@ -27,7 +27,7 @@ module.exports = {
       // ── Directorio de trabajo ─────────────────────────────────────────────
       // PM2 resolverá rutas relativas desde este directorio.
       // Ajustar si el servidor se despliega en una ruta distinta.
-      cwd:         '/var/www/stellaris/server',
+      cwd:         '/var/www/stellaris/stellaris-automation/server',
 
       // ── Política de reinicio ──────────────────────────────────────────────
       watch:        false,          // No reiniciar en cambios de archivo (producción)
