@@ -203,6 +203,14 @@ router.get('/admin/clientes/:id', async (req, res) => {
       include: {
         marca:  { select: { marca: true } },
         estado: { select: { estado: true } },
+        fuente: {
+          select: {
+            idFuente: true,
+            modelo:   true,
+            noSerie:  true,
+            marca:    { select: { marca: true } },
+          },
+        },
       },
       orderBy: { idRobot: 'asc' },
     });
@@ -251,6 +259,12 @@ router.get('/admin/clientes/:id', async (req, res) => {
       fechaInstalacion: r.fechaInstalacion ? r.fechaInstalacion.toISOString().split('T')[0] : null,
       fechaProxMant:    r.fechaProxMant    ? r.fechaProxMant.toISOString().split('T')[0]    : null,
       horasOperacion:   r.horasOperacion ?? 0,
+      fuente: r.fuente ? {
+        id:      r.fuente.idFuente,
+        modelo:  r.fuente.modelo,
+        noSerie: r.fuente.noSerie,
+        marca:   r.fuente.marca.marca,
+      } : null,
     }));
 
     const ticketsResult = tickets.map((t) => ({
@@ -591,6 +605,11 @@ router.post('/admin/robots', async (req, res) => {
   }
   const { idCliente, idMarca, idEstado, modelo, noSerie, celda, fechaInstalacion, fechaProxMant, horasOperacion } = parsed.data;
   try {
+    // noSerie uniqueness per client
+    const dup = await prisma.robot.findFirst({ where: { noSerie, idCliente } });
+    if (dup) {
+      return res.status(409).json({ error: `Ya existe un robot con el No. Serie "${noSerie}" para este cliente` });
+    }
     const robot = await prisma.robot.create({
       data: {
         idCliente,
@@ -622,6 +641,18 @@ router.patch('/admin/robots/:id', async (req, res) => {
     return res.status(400).json({ error: 'Datos inválidos', details: parsed.error.flatten().fieldErrors });
   }
   try {
+    // noSerie uniqueness per client (if changing noSerie)
+    if (parsed.data.noSerie !== undefined) {
+      const robotActual = await prisma.robot.findUnique({ where: { idRobot: id }, select: { idCliente: true } });
+      if (!robotActual) return res.status(404).json({ error: 'Robot no encontrado' });
+      const dup = await prisma.robot.findFirst({
+        where: { noSerie: parsed.data.noSerie, idCliente: robotActual.idCliente, NOT: { idRobot: id } },
+      });
+      if (dup) {
+        return res.status(409).json({ error: `Ya existe un robot con el No. Serie "${parsed.data.noSerie}" para este cliente` });
+      }
+    }
+
     const data = {};
     if (parsed.data.idMarca          !== undefined) data.idMarca          = parsed.data.idMarca;
     if (parsed.data.idEstado         !== undefined) data.idEstado         = parsed.data.idEstado;
@@ -655,6 +686,91 @@ router.delete('/admin/robots/:id', async (req, res) => {
     if (err.code === 'P2025') return res.status(404).json({ error: 'Robot no encontrado' });
     console.error('[admin/robots DELETE]', err instanceof Error ? err.message : String(err));
     return res.status(500).json({ error: 'Error al eliminar robot' });
+  }
+});
+
+// ─── Schemas: fuentes de poder ───────────────────────────────────────────────
+
+const fuenteCreateSchema = z.object({
+  idRobot: z.number().int().positive(),
+  idMarca: z.number().int().positive(),
+  modelo:  z.string().min(1).max(100),
+  noSerie: z.string().min(1).max(100),
+});
+
+const fuentePatchSchema = z.object({
+  idMarca: z.number().int().positive().optional(),
+  modelo:  z.string().min(1).max(100).optional(),
+  noSerie: z.string().min(1).max(100).optional(),
+});
+
+// ─── POST /api/admin/fuentes ──────────────────────────────────────────────────
+// Creates a FuentePoder and assigns it to a robot
+
+router.post('/admin/fuentes', async (req, res) => {
+  const parsed = fuenteCreateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Datos inválidos', details: parsed.error.flatten().fieldErrors });
+  }
+  const { idRobot, idMarca, modelo, noSerie } = parsed.data;
+  try {
+    // Global noSerie uniqueness check
+    const existing = await prisma.fuentePoder.findFirst({
+      where:   { noSerie },
+      include: { robots: { take: 1, include: { cliente: { select: { nombre: true } } } } },
+    });
+    if (existing) {
+      const r = existing.robots[0];
+      const ctx = r ? ` (asignada al robot "${r.modelo}" del cliente "${r.cliente.nombre}")` : '';
+      return res.status(409).json({ error: `Ya existe una fuente de poder con el No. Serie "${noSerie}"${ctx}` });
+    }
+
+    const fuente = await prisma.$transaction(async (tx) => {
+      const f = await tx.fuentePoder.create({ data: { idMarca, modelo, noSerie } });
+      await tx.robot.update({ where: { idRobot }, data: { idFuente: f.idFuente } });
+      return f;
+    });
+    return res.status(201).json({ id: fuente.idFuente, modelo: fuente.modelo, noSerie: fuente.noSerie });
+  } catch (err) {
+    if (err.code === 'P2025') return res.status(404).json({ error: 'Robot no encontrado' });
+    console.error('[admin/fuentes POST]', err instanceof Error ? err.message : String(err));
+    return res.status(500).json({ error: 'Error al crear fuente de poder' });
+  }
+});
+
+// ─── PATCH /api/admin/fuentes/:id ─────────────────────────────────────────────
+
+router.patch('/admin/fuentes/:id', async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) return res.status(400).json({ error: 'ID inválido' });
+
+  const parsed = fuentePatchSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Datos inválidos', details: parsed.error.flatten().fieldErrors });
+  }
+  try {
+    if (parsed.data.noSerie !== undefined) {
+      const existing = await prisma.fuentePoder.findFirst({
+        where:   { noSerie: parsed.data.noSerie, NOT: { idFuente: id } },
+        include: { robots: { take: 1, include: { cliente: { select: { nombre: true } } } } },
+      });
+      if (existing) {
+        const r = existing.robots[0];
+        const ctx = r ? ` (asignada al robot "${r.modelo}" del cliente "${r.cliente.nombre}")` : '';
+        return res.status(409).json({ error: `Ya existe una fuente con el No. Serie "${parsed.data.noSerie}"${ctx}` });
+      }
+    }
+    const data = {};
+    if (parsed.data.idMarca !== undefined) data.idMarca = parsed.data.idMarca;
+    if (parsed.data.modelo  !== undefined) data.modelo  = parsed.data.modelo;
+    if (parsed.data.noSerie !== undefined) data.noSerie = parsed.data.noSerie;
+
+    await prisma.fuentePoder.update({ where: { idFuente: id }, data });
+    return res.json({ success: true });
+  } catch (err) {
+    if (err.code === 'P2025') return res.status(404).json({ error: 'Fuente no encontrada' });
+    console.error('[admin/fuentes PATCH]', err instanceof Error ? err.message : String(err));
+    return res.status(500).json({ error: 'Error al actualizar fuente de poder' });
   }
 });
 

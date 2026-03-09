@@ -75,4 +75,50 @@ router.get('/robots', async (req, res) => {
   }
 });
 
+// ─── GET /api/robots/:id/mantenimientos ───────────────────────────────────────
+
+router.get('/robots/:id/mantenimientos', async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) return res.status(400).json({ error: 'ID inválido' });
+
+  try {
+    const { idCuenta, idRol } = req.user;
+
+    // Verificar acceso: admin ve todo; usuario solo ve sus robots
+    if (idRol !== 1) {
+      const cuenta = await prisma.cuenta.findUnique({ where: { idCuenta }, select: { correo: true } });
+      const usuario = await prisma.usuario.findFirst({
+        where: { correo: cuenta?.correo },
+        select: { idCliente: true },
+      });
+      const robot = await prisma.robot.findFirst({
+        where: { idRobot: id, idCliente: usuario?.idCliente ?? -1 },
+      });
+      if (!robot) return res.status(403).json({ error: 'Acceso denegado' });
+    }
+
+    const mantenimientos = await prisma.mantenimiento.findMany({
+      where: { idRobot: id },
+      include: {
+        tipoSolicitud:   { select: { tipo: true } },
+        estadoSolicitud: { select: { estado: true } },
+      },
+      orderBy: { fechaMantenimiento: 'desc' },
+      take: 50,
+    });
+
+    return res.json(mantenimientos.map((m) => ({
+      id:      m.idMantenimiento,
+      fecha:   m.fechaMantenimiento ? m.fechaMantenimiento.toISOString().split('T')[0] : null,
+      tipo:    m.tipoSolicitud.tipo,
+      estado:  m.estadoSolicitud.estado,
+      costo:   m.costoTotal ? Number(m.costoTotal) : null,
+      reporte: m.reporte ?? '',
+    })));
+  } catch (err) {
+    console.error('[api/robots/:id/mantenimientos]', err instanceof Error ? err.message : String(err));
+    return res.status(500).json({ error: 'Error al obtener historial de mantenimientos' });
+  }
+});
+
 export default router;

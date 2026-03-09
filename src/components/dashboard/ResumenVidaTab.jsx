@@ -43,9 +43,11 @@ export default function ResumenVidaTab() {
     }
     
     // Penalizar por estado
-    if (robot.estado === 'falla') score -= 30;
-    else if (robot.estado === 'mantenimiento') score -= 15;
-    else if (robot.estado === 'inactivo') score -= 10;
+    const lc = (robot.estado ?? '').toLowerCase();
+    if (lc.includes('falla'))             score -= 30;
+    else if (lc.includes('atenci'))       score -= 15;
+    else if (lc.includes('mantenimient')) score -= 10;
+    else if (lc.includes('sin'))          score -= 5;
     
     return Math.max(0, score);
   };

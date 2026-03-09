@@ -13,14 +13,11 @@ import { X, ChevronDown, ChevronUp, Plus, Pencil, Trash2, RotateCcw } from 'luci
 
 function EstadoRobotBadge({ estado }) {
   const lc = (estado ?? '').toLowerCase();
-  const map = {
-    activo:        'bg-green-100 text-green-800 border-green-200',
-    operativo:     'bg-green-100 text-green-800 border-green-200',
-    mantenimiento: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-    inactivo:      'bg-slate-100 text-slate-600 border-slate-200',
-    falla:         'bg-red-100 text-red-800 border-red-200',
-  };
-  const cls = map[lc] ?? 'bg-slate-100 text-slate-600 border-slate-200';
+  let cls = 'bg-slate-100 text-slate-600 border-slate-200';
+  if (lc === 'operativo')              cls = 'bg-green-100 text-green-800 border-green-200';
+  else if (lc.includes('mantenimient')) cls = 'bg-blue-100 text-blue-800 border-blue-200';
+  else if (lc.includes('atenci'))      cls = 'bg-yellow-100 text-yellow-800 border-yellow-200';
+  else if (lc.includes('falla'))       cls = 'bg-red-100 text-red-800 border-red-200';
   return <Badge className={`${cls} border`}>{estado}</Badge>;
 }
 
@@ -71,6 +68,15 @@ export default function ClienteDetalleDialog({ cliente, onClose }) {
   });
   const [robotSaving,  setRobotSaving]  = useState(false);
   const [robotError,   setRobotError]   = useState('');
+
+  // fuente de poder state
+  const [fuentePrompt,       setFuentePrompt]       = useState(null); // { id, modelo, noSerie } of newly created robot
+  const [fuenteDialog,       setFuenteDialog]       = useState(null); // null | 'create' | 'edit'
+  const [fuenteTargetRobotId, setFuenteTargetRobotId] = useState(null);
+  const [fuenteEditId,       setFuenteEditId]       = useState(null);
+  const [fuenteForm,         setFuenteForm]         = useState({ idMarca: '', modelo: '', noSerie: '' });
+  const [fuenteSaving,       setFuenteSaving]       = useState(false);
+  const [fuenteError,        setFuenteError]        = useState('');
 
   // ─── Queries ─────────────────────────────────────────────────────────────
 
@@ -297,13 +303,86 @@ export default function ClienteDetalleDialog({ cliente, onClose }) {
           body: JSON.stringify(body),
         });
       }
+      const isCreate = robotDialog === 'create';
+      const capturedModelo  = robotForm.modelo.trim();
+      const capturedNoSerie = robotForm.noSerie.trim();
       if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error ?? 'Error'); }
+      const responseData = await res.json().catch(() => ({}));
       await queryClient.invalidateQueries(['admin-cliente-detail', cliente.id]);
       closeRobotDialog();
+      if (isCreate && responseData.id) {
+        setFuentePrompt({ id: responseData.id, modelo: capturedModelo, noSerie: capturedNoSerie });
+      }
     } catch (err) {
       setRobotError(err.message);
     } finally {
       setRobotSaving(false);
+    }
+  };
+
+  // ─── Fuente de Poder CRUD ─────────────────────────────────────────────────
+
+  const openFuenteCreate = (robotId) => {
+    setFuenteTargetRobotId(robotId);
+    setFuenteEditId(null);
+    setFuenteForm({ idMarca: '', modelo: '', noSerie: '' });
+    setFuenteError('');
+    setFuenteDialog('create');
+    setFuentePrompt(null);
+  };
+
+  const openFuenteEdit = (robot) => {
+    setFuenteTargetRobotId(robot.id);
+    setFuenteEditId(robot.fuente.id);
+    setFuenteForm({
+      idMarca: String(marcas.find(m => m.marca === robot.fuente.marca)?.idMarca ?? ''),
+      modelo:  robot.fuente.modelo,
+      noSerie: robot.fuente.noSerie,
+    });
+    setFuenteError('');
+    setFuenteDialog('edit');
+  };
+
+  const closeFuenteDialog = () => { setFuenteDialog(null); setFuenteError(''); };
+
+  const handleFuenteSave = async () => {
+    if (!fuenteForm.idMarca || !fuenteForm.modelo.trim() || !fuenteForm.noSerie.trim()) {
+      setFuenteError('Marca, modelo y número de serie son obligatorios');
+      return;
+    }
+    setFuenteSaving(true);
+    setFuenteError('');
+    try {
+      let res;
+      if (fuenteDialog === 'create') {
+        res = await fetch('/api/admin/fuentes', {
+          method: 'POST', credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            idRobot: fuenteTargetRobotId,
+            idMarca: Number(fuenteForm.idMarca),
+            modelo:  fuenteForm.modelo.trim(),
+            noSerie: fuenteForm.noSerie.trim(),
+          }),
+        });
+      } else {
+        res = await fetch(`/api/admin/fuentes/${fuenteEditId}`, {
+          method: 'PATCH', credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            idMarca: Number(fuenteForm.idMarca),
+            modelo:  fuenteForm.modelo.trim(),
+            noSerie: fuenteForm.noSerie.trim(),
+          }),
+        });
+      }
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error ?? 'Error'); }
+      await queryClient.invalidateQueries(['admin-cliente-detail', cliente.id]);
+      closeFuenteDialog();
+    } catch (err) {
+      setFuenteError(err.message);
+    } finally {
+      setFuenteSaving(false);
     }
   };
 
@@ -485,13 +564,12 @@ export default function ClienteDetalleDialog({ cliente, onClose }) {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Modelo</TableHead>
-                          <TableHead>No. Serie</TableHead>
+                          <TableHead>No. Serie Robot</TableHead>
                           <TableHead>Marca</TableHead>
-                          <TableHead>Celda</TableHead>
                           <TableHead>Estado</TableHead>
-                          <TableHead>Instalación</TableHead>
-                          <TableHead>Prox. Mant.</TableHead>
-                          <TableHead className="text-right">Horas</TableHead>
+                          <TableHead>Fuente de Poder</TableHead>
+                          <TableHead>No. Serie FdP</TableHead>
+                          <TableHead>Celda</TableHead>
                           <TableHead className="text-center">Acciones</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -501,15 +579,22 @@ export default function ClienteDetalleDialog({ cliente, onClose }) {
                             <TableCell className="font-medium">{r.modelo}</TableCell>
                             <TableCell className="font-mono text-sm">{r.noSerie}</TableCell>
                             <TableCell>{r.marca}</TableCell>
-                            <TableCell>{r.celda || '—'}</TableCell>
                             <TableCell><EstadoRobotBadge estado={r.estado} /></TableCell>
-                            <TableCell>{r.fechaInstalacion ?? '—'}</TableCell>
-                            <TableCell>{r.fechaProxMant ?? '—'}</TableCell>
-                            <TableCell className="text-right">{r.horasOperacion.toLocaleString()}</TableCell>
+                            <TableCell className="text-sm">{r.fuente ? `${r.fuente.marca} ${r.fuente.modelo}` : <span className="text-slate-400 italic text-xs">Sin asignar</span>}</TableCell>
+                            <TableCell className="font-mono text-sm">{r.fuente ? r.fuente.noSerie : '—'}</TableCell>
+                            <TableCell>{r.celda || '—'}</TableCell>
                             <TableCell>
                               <div className="flex items-center justify-center gap-1">
-                                <Button variant="ghost" size="sm" title="Editar" onClick={() => openEditRobot(r)} className="text-slate-600 hover:text-amber-600">
+                                <Button variant="ghost" size="sm" title="Editar robot" onClick={() => openEditRobot(r)} className="text-slate-600 hover:text-amber-600">
                                   <Pencil className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost" size="sm"
+                                  title={r.fuente ? 'Editar Fuente de Poder' : 'Agregar Fuente de Poder'}
+                                  onClick={() => r.fuente ? openFuenteEdit(r) : openFuenteCreate(r.id)}
+                                  className={r.fuente ? 'text-blue-500 hover:text-blue-700' : 'text-slate-400 hover:text-blue-600'}
+                                >
+                                  ⚡
                                 </Button>
                                 <Button variant="ghost" size="sm" title="Eliminar" onClick={() => { setSelRobot(r); setRobotError(''); setRobotDialog('delete'); }} className="text-slate-600 hover:text-red-600">
                                   <Trash2 className="w-4 h-4" />
@@ -880,6 +965,78 @@ export default function ClienteDetalleDialog({ cliente, onClose }) {
               <Button variant="outline" className="flex-1" onClick={closeRobotDialog} disabled={robotSaving}>Cancelar</Button>
               <Button className="flex-1 bg-red-600 hover:bg-red-700 text-white" onClick={handleRobotDelete} disabled={robotSaving}>
                 {robotSaving ? 'Eliminando...' : 'Eliminar'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Fuente de Poder prompt (after robot creation) ───────────────────── */}
+      {fuentePrompt && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 space-y-4 text-center">
+            <div className="text-4xl">⚡</div>
+            <h3 className="text-lg font-semibold text-slate-900">¿Agregar Fuente de Poder?</h3>
+            <p className="text-sm text-slate-600">
+              El robot <strong>{fuentePrompt.modelo} — {fuentePrompt.noSerie}</strong> fue creado exitosamente.
+              ¿Deseas asignarle una Fuente de Poder ahora?
+            </p>
+            <div className="flex gap-2 pt-1">
+              <Button variant="outline" className="flex-1" onClick={() => setFuentePrompt(null)}>
+                Omitir
+              </Button>
+              <Button className="flex-1 bg-blue-600 hover:bg-blue-700" onClick={() => openFuenteCreate(fuentePrompt.id)}>
+                Agregar Fuente
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Fuente de Poder create / edit dialog ────────────────────────────── */}
+      {fuenteDialog && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
+            <h3 className="text-lg font-semibold text-slate-900">
+              {fuenteDialog === 'create' ? 'Agregar Fuente de Poder' : 'Editar Fuente de Poder'}
+            </h3>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2">
+                <Label>Marca <span className="text-red-500">*</span></Label>
+                <Select value={fuenteForm.idMarca} onValueChange={(v) => setFuenteForm(f => ({ ...f, idMarca: v }))}>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Seleccionar marca" /></SelectTrigger>
+                  <SelectContent>
+                    {marcas.map(m => <SelectItem key={m.idMarca} value={String(m.idMarca)}>{m.marca}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Modelo <span className="text-red-500">*</span></Label>
+                <Input
+                  value={fuenteForm.modelo}
+                  onChange={(e) => setFuenteForm(f => ({ ...f, modelo: e.target.value }))}
+                  placeholder="Ej. AW11/DSQC662"
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label>No. Serie <span className="text-red-500">*</span></Label>
+                <Input
+                  value={fuenteForm.noSerie}
+                  onChange={(e) => setFuenteForm(f => ({ ...f, noSerie: e.target.value }))}
+                  placeholder="Número de serie"
+                  className="mt-1"
+                />
+              </div>
+            </div>
+
+            {fuenteError && <p className="text-sm text-red-600">{fuenteError}</p>}
+
+            <div className="flex gap-2 pt-1">
+              <Button variant="outline" className="flex-1" onClick={closeFuenteDialog} disabled={fuenteSaving}>Cancelar</Button>
+              <Button className="flex-1 bg-blue-600 hover:bg-blue-700" onClick={handleFuenteSave} disabled={fuenteSaving}>
+                {fuenteSaving ? 'Guardando...' : 'Guardar'}
               </Button>
             </div>
           </div>
