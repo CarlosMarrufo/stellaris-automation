@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Users, Plus, Eye, Pencil, Trash2, Search } from 'lucide-react';
+import { Users, Plus, Eye, Pencil, Trash2, Search, RotateCcw } from 'lucide-react';
 
 import ClienteDetalleDialog from './ClienteDetalleDialog';
 
@@ -120,6 +120,18 @@ export default function ClientesTab() {
     }
   };
 
+  const handleReactivate = async (cliente) => {
+    try {
+      await fetch(`/api/admin/clientes/${cliente.id}`, {
+        method:      'PATCH',
+        credentials: 'include',
+        headers:     { 'Content-Type': 'application/json' },
+        body:        JSON.stringify({ nombre: cliente.nombre, rfc: cliente.rfc || undefined, activo: true }),
+      });
+      await queryClient.invalidateQueries(['admin-clientes']);
+    } catch { /* silencioso */ }
+  };
+
   // ─── Render ──────────────────────────────────────────────────────────────────
 
   if (isLoading) {
@@ -218,15 +230,27 @@ export default function ClientesTab() {
                           >
                             <Pencil className="w-4 h-4" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            title="Desactivar"
-                            onClick={() => openDelete(c)}
-                            className="text-slate-600 hover:text-red-600"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                          {c.activo ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              title="Desactivar"
+                              onClick={() => openDelete(c)}
+                              className="text-slate-600 hover:text-red-600"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              title="Reactivar"
+                              onClick={() => handleReactivate(c)}
+                              className="text-slate-600 hover:text-green-600"
+                            >
+                              <RotateCcw className="w-4 h-4" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>

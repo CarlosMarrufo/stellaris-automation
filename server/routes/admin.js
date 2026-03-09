@@ -225,10 +225,8 @@ router.get('/admin/clientes/:id', async (req, res) => {
     });
     const correos = usuarios.map((u) => u.correo);
 
-    const cotizaciones = await prisma.cotizacion.findMany({
-      where: correos.length > 0
-        ? { cuenta: { correo: { in: correos } } }
-        : { id: -1 }, // no match if no usuarios
+    const cotizaciones = correos.length === 0 ? [] : await prisma.cotizacion.findMany({
+      where: { cuenta: { correo: { in: correos } } },
       include: {
         cuenta: { select: { nombre: true, correo: true } },
         items: {
