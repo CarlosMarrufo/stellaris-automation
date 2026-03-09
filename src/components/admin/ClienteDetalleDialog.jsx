@@ -62,6 +62,16 @@ export default function ClienteDetalleDialog({ cliente, onClose }) {
   const [userSaving,  setUserSaving]  = useState(false);
   const [userError,   setUserError]   = useState('');
 
+  // robots state
+  const [robotDialog,  setRobotDialog]  = useState(null); // null | 'create' | 'edit' | 'delete'
+  const [selRobot,     setSelRobot]     = useState(null);
+  const [robotForm,    setRobotForm]    = useState({
+    idMarca: '', idEstado: '', modelo: '', noSerie: '',
+    celda: '', fechaInstalacion: '', fechaProxMant: '', horasOperacion: '0',
+  });
+  const [robotSaving,  setRobotSaving]  = useState(false);
+  const [robotError,   setRobotError]   = useState('');
+
   // ─── Queries ─────────────────────────────────────────────────────────────
 
   const { data: detail, isLoading, error } = useQuery({
@@ -87,6 +97,15 @@ export default function ClienteDetalleDialog({ cliente, onClose }) {
     queryFn:  async () => {
       const res = await fetch(`/api/admin/clientes/${cliente.id}/usuarios`, { credentials: 'include' });
       if (!res.ok) throw new Error('Error al cargar usuarios');
+      return res.json();
+    },
+  });
+
+  const { data: marcas = [] } = useQuery({
+    queryKey: ['marcas'],
+    queryFn:  async () => {
+      const res = await fetch('/api/marcas', { credentials: 'include' });
+      if (!res.ok) throw new Error('Error al cargar marcas');
       return res.json();
     },
   });
@@ -216,6 +235,90 @@ export default function ClienteDetalleDialog({ cliente, onClose }) {
       await queryClient.invalidateQueries(['admin-usuarios', cliente.id]);
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  // ─── Robot CRUD ───────────────────────────────────────────────────────────
+
+  const openCreateRobot = () => {
+    setRobotForm({ idMarca: '', idEstado: '', modelo: '', noSerie: '', celda: '', fechaInstalacion: '', fechaProxMant: '', horasOperacion: '0' });
+    setRobotError('');
+    setSelRobot(null);
+    setRobotDialog('create');
+  };
+
+  const openEditRobot = (r) => {
+    setSelRobot(r);
+    setRobotForm({
+      idMarca:          String(marcas.find(m => m.marca === r.marca)?.idMarca ?? ''),
+      idEstado:         String(catalogos?.estadosRobot?.find(e => e.estado === r.estado)?.idEstado ?? ''),
+      modelo:           r.modelo,
+      noSerie:          r.noSerie,
+      celda:            r.celda ?? '',
+      fechaInstalacion: r.fechaInstalacion ?? '',
+      fechaProxMant:    r.fechaProxMant ?? '',
+      horasOperacion:   String(r.horasOperacion ?? 0),
+    });
+    setRobotError('');
+    setRobotDialog('edit');
+  };
+
+  const closeRobotDialog = () => { setRobotDialog(null); setSelRobot(null); setRobotError(''); };
+
+  const handleRobotSave = async () => {
+    if (!robotForm.modelo.trim() || !robotForm.noSerie.trim() || !robotForm.idMarca || !robotForm.idEstado) {
+      setRobotError('Modelo, No. Serie, Marca y Estado son obligatorios');
+      return;
+    }
+    setRobotSaving(true);
+    setRobotError('');
+    try {
+      const body = {
+        idMarca:          Number(robotForm.idMarca),
+        idEstado:         Number(robotForm.idEstado),
+        modelo:           robotForm.modelo.trim(),
+        noSerie:          robotForm.noSerie.trim(),
+        celda:            robotForm.celda.trim() || null,
+        fechaInstalacion: robotForm.fechaInstalacion || null,
+        fechaProxMant:    robotForm.fechaProxMant    || null,
+        horasOperacion:   Number(robotForm.horasOperacion) || 0,
+      };
+      let res;
+      if (robotDialog === 'create') {
+        res = await fetch('/api/admin/robots', {
+          method: 'POST', credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...body, idCliente: cliente.id }),
+        });
+      } else {
+        res = await fetch(`/api/admin/robots/${selRobot.id}`, {
+          method: 'PATCH', credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+      }
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error ?? 'Error'); }
+      await queryClient.invalidateQueries(['admin-cliente-detail', cliente.id]);
+      closeRobotDialog();
+    } catch (err) {
+      setRobotError(err.message);
+    } finally {
+      setRobotSaving(false);
+    }
+  };
+
+  const handleRobotDelete = async () => {
+    setRobotSaving(true);
+    setRobotError('');
+    try {
+      const res = await fetch(`/api/admin/robots/${selRobot.id}`, { method: 'DELETE', credentials: 'include' });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error ?? 'Error'); }
+      await queryClient.invalidateQueries(['admin-cliente-detail', cliente.id]);
+      closeRobotDialog();
+    } catch (err) {
+      setRobotError(err.message);
+    } finally {
+      setRobotSaving(false);
     }
   };
 
@@ -368,6 +471,12 @@ export default function ClienteDetalleDialog({ cliente, onClose }) {
 
               {/* ─── Robots tab ─────────────────────────────────────────── */}
               <TabsContent value="robots">
+                <div className="flex justify-end mb-3">
+                  <Button onClick={openCreateRobot} className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2">
+                    <Plus className="w-4 h-4" />
+                    Nuevo Robot
+                  </Button>
+                </div>
                 {robots.length === 0 ? (
                   <p className="text-slate-500 py-6 text-center">No hay robots registrados</p>
                 ) : (
@@ -383,6 +492,7 @@ export default function ClienteDetalleDialog({ cliente, onClose }) {
                           <TableHead>Instalación</TableHead>
                           <TableHead>Prox. Mant.</TableHead>
                           <TableHead className="text-right">Horas</TableHead>
+                          <TableHead className="text-center">Acciones</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -396,6 +506,16 @@ export default function ClienteDetalleDialog({ cliente, onClose }) {
                             <TableCell>{r.fechaInstalacion ?? '—'}</TableCell>
                             <TableCell>{r.fechaProxMant ?? '—'}</TableCell>
                             <TableCell className="text-right">{r.horasOperacion.toLocaleString()}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center justify-center gap-1">
+                                <Button variant="ghost" size="sm" title="Editar" onClick={() => openEditRobot(r)} className="text-slate-600 hover:text-amber-600">
+                                  <Pencil className="w-4 h-4" />
+                                </Button>
+                                <Button variant="ghost" size="sm" title="Eliminar" onClick={() => { setSelRobot(r); setRobotError(''); setRobotDialog('delete'); }} className="text-slate-600 hover:text-red-600">
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -672,6 +792,94 @@ export default function ClienteDetalleDialog({ cliente, onClose }) {
                 disabled={userSaving}
               >
                 {userSaving ? 'Guardando...' : 'Guardar'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Create / Edit robot dialog ─────────────────────────────────────── */}
+      {(robotDialog === 'create' || robotDialog === 'edit') && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[60] p-4 overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 space-y-4 my-8">
+            <h3 className="text-lg font-semibold text-slate-900">
+              {robotDialog === 'create' ? 'Nuevo Robot' : 'Editar Robot'}
+            </h3>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Modelo <span className="text-red-500">*</span></Label>
+                <Input value={robotForm.modelo} onChange={(e) => setRobotForm(f => ({ ...f, modelo: e.target.value }))} placeholder="Ej. IRB 2600" className="mt-1" />
+              </div>
+              <div>
+                <Label>No. Serie <span className="text-red-500">*</span></Label>
+                <Input value={robotForm.noSerie} onChange={(e) => setRobotForm(f => ({ ...f, noSerie: e.target.value }))} placeholder="Número de serie" className="mt-1" />
+              </div>
+              <div>
+                <Label>Marca <span className="text-red-500">*</span></Label>
+                <Select value={robotForm.idMarca} onValueChange={(v) => setRobotForm(f => ({ ...f, idMarca: v }))}>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Seleccionar marca" /></SelectTrigger>
+                  <SelectContent>
+                    {marcas.map(m => <SelectItem key={m.idMarca} value={String(m.idMarca)}>{m.marca}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Estado <span className="text-red-500">*</span></Label>
+                <Select value={robotForm.idEstado} onValueChange={(v) => setRobotForm(f => ({ ...f, idEstado: v }))}>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Seleccionar estado" /></SelectTrigger>
+                  <SelectContent>
+                    {(catalogos?.estadosRobot ?? []).map(e => <SelectItem key={e.idEstado} value={String(e.idEstado)}>{e.estado}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Celda</Label>
+                <Input value={robotForm.celda} onChange={(e) => setRobotForm(f => ({ ...f, celda: e.target.value }))} placeholder="Celda (opcional)" className="mt-1" />
+              </div>
+              <div>
+                <Label>Horas de Operación</Label>
+                <Input type="number" min={0} value={robotForm.horasOperacion} onChange={(e) => setRobotForm(f => ({ ...f, horasOperacion: e.target.value }))} className="mt-1" />
+              </div>
+              <div>
+                <Label>Fecha Instalación</Label>
+                <Input type="date" value={robotForm.fechaInstalacion} onChange={(e) => setRobotForm(f => ({ ...f, fechaInstalacion: e.target.value }))} className="mt-1" />
+              </div>
+              <div>
+                <Label>Próximo Mantenimiento</Label>
+                <Input type="date" value={robotForm.fechaProxMant} onChange={(e) => setRobotForm(f => ({ ...f, fechaProxMant: e.target.value }))} className="mt-1" />
+              </div>
+            </div>
+
+            {robotError && <p className="text-sm text-red-600">{robotError}</p>}
+
+            <div className="flex gap-2 pt-1">
+              <Button variant="outline" className="flex-1" onClick={closeRobotDialog} disabled={robotSaving}>Cancelar</Button>
+              <Button className="flex-1 bg-blue-600 hover:bg-blue-700" onClick={handleRobotSave} disabled={robotSaving}>
+                {robotSaving ? 'Guardando...' : 'Guardar'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Delete robot dialog ─────────────────────────────────────────────── */}
+      {robotDialog === 'delete' && selRobot && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
+            <h3 className="text-lg font-semibold text-slate-900">Eliminar Robot</h3>
+            <p className="text-slate-600 text-sm">
+              ¿Deseas eliminar <strong>{selRobot.modelo} — {selRobot.noSerie}</strong>?
+              Esta acción no se puede deshacer.
+            </p>
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
+              Si el robot tiene tickets o mantenimientos asociados, no se podrá eliminar. Cambia su estado a Inactivo en su lugar.
+            </p>
+            {robotError && <p className="text-sm text-red-600">{robotError}</p>}
+            <div className="flex gap-2 pt-1">
+              <Button variant="outline" className="flex-1" onClick={closeRobotDialog} disabled={robotSaving}>Cancelar</Button>
+              <Button className="flex-1 bg-red-600 hover:bg-red-700 text-white" onClick={handleRobotDelete} disabled={robotSaving}>
+                {robotSaving ? 'Eliminando...' : 'Eliminar'}
               </Button>
             </div>
           </div>

@@ -557,4 +557,106 @@ router.put('/admin/usuarios/:id/reactivar', async (req, res) => {
   }
 });
 
+// ─── Schemas: robots ─────────────────────────────────────────────────────────
+
+const robotCreateSchema = z.object({
+  idCliente:        z.number().int().positive(),
+  idMarca:          z.number().int().positive(),
+  idEstado:         z.number().int().positive(),
+  modelo:           z.string().min(1).max(100),
+  noSerie:          z.string().min(1).max(100),
+  celda:            z.string().max(50).optional(),
+  fechaInstalacion: z.string().optional().nullable(),
+  fechaProxMant:    z.string().optional().nullable(),
+  horasOperacion:   z.number().int().min(0).optional().default(0),
+});
+
+const robotPatchSchema = z.object({
+  idMarca:          z.number().int().positive().optional(),
+  idEstado:         z.number().int().positive().optional(),
+  modelo:           z.string().min(1).max(100).optional(),
+  noSerie:          z.string().min(1).max(100).optional(),
+  celda:            z.string().max(50).optional().nullable(),
+  fechaInstalacion: z.string().optional().nullable(),
+  fechaProxMant:    z.string().optional().nullable(),
+  horasOperacion:   z.number().int().min(0).optional(),
+});
+
+// ─── POST /api/admin/robots ───────────────────────────────────────────────────
+
+router.post('/admin/robots', async (req, res) => {
+  const parsed = robotCreateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Datos inválidos', details: parsed.error.flatten().fieldErrors });
+  }
+  const { idCliente, idMarca, idEstado, modelo, noSerie, celda, fechaInstalacion, fechaProxMant, horasOperacion } = parsed.data;
+  try {
+    const robot = await prisma.robot.create({
+      data: {
+        idCliente,
+        idMarca,
+        idEstado,
+        modelo,
+        noSerie,
+        celda:            celda || null,
+        fechaInstalacion: fechaInstalacion ? new Date(fechaInstalacion) : null,
+        fechaProxMant:    fechaProxMant    ? new Date(fechaProxMant)    : null,
+        horasOperacion:   horasOperacion ?? 0,
+      },
+    });
+    return res.status(201).json({ success: true, id: robot.idRobot });
+  } catch (err) {
+    console.error('[admin/robots POST]', err instanceof Error ? err.message : String(err));
+    return res.status(500).json({ error: 'Error al crear robot' });
+  }
+});
+
+// ─── PATCH /api/admin/robots/:id ──────────────────────────────────────────────
+
+router.patch('/admin/robots/:id', async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) return res.status(400).json({ error: 'ID inválido' });
+
+  const parsed = robotPatchSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Datos inválidos', details: parsed.error.flatten().fieldErrors });
+  }
+  try {
+    const data = {};
+    if (parsed.data.idMarca          !== undefined) data.idMarca          = parsed.data.idMarca;
+    if (parsed.data.idEstado         !== undefined) data.idEstado         = parsed.data.idEstado;
+    if (parsed.data.modelo           !== undefined) data.modelo           = parsed.data.modelo;
+    if (parsed.data.noSerie          !== undefined) data.noSerie          = parsed.data.noSerie;
+    if (parsed.data.celda            !== undefined) data.celda            = parsed.data.celda;
+    if (parsed.data.horasOperacion   !== undefined) data.horasOperacion   = parsed.data.horasOperacion;
+    if (parsed.data.fechaInstalacion !== undefined) data.fechaInstalacion = parsed.data.fechaInstalacion ? new Date(parsed.data.fechaInstalacion) : null;
+    if (parsed.data.fechaProxMant    !== undefined) data.fechaProxMant    = parsed.data.fechaProxMant    ? new Date(parsed.data.fechaProxMant)    : null;
+
+    await prisma.robot.update({ where: { idRobot: id }, data });
+    return res.json({ success: true });
+  } catch (err) {
+    if (err.code === 'P2025') return res.status(404).json({ error: 'Robot no encontrado' });
+    console.error('[admin/robots PATCH]', err instanceof Error ? err.message : String(err));
+    return res.status(500).json({ error: 'Error al actualizar robot' });
+  }
+});
+
+// ─── DELETE /api/admin/robots/:id ─────────────────────────────────────────────
+
+router.delete('/admin/robots/:id', async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) return res.status(400).json({ error: 'ID inválido' });
+
+  try {
+    await prisma.robot.delete({ where: { idRobot: id } });
+    return res.json({ success: true });
+  } catch (err) {
+    if (err.code === 'P2003') return res.status(409).json({ error: 'No se puede eliminar: el robot tiene tickets o mantenimientos asociados. Cambia su estado a Inactivo.' });
+    if (err.code === 'P2025') return res.status(404).json({ error: 'Robot no encontrado' });
+    console.error('[admin/robots DELETE]', err instanceof Error ? err.message : String(err));
+    return res.status(500).json({ error: 'Error al eliminar robot' });
+  }
+});
+
 export default router;
+
