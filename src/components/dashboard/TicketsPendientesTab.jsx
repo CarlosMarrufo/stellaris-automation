@@ -1,12 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertCircle, Clock, User, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 export default function TicketsPendientesTab() {
+  const [filterEstado,    setFilterEstado]    = useState('todos');
+  const [filterPrioridad, setFilterPrioridad] = useState('todas');
+
   const { data: tickets = [], isLoading } = useQuery({
     queryKey: ['tickets'],
     queryFn: async () => {
@@ -17,22 +21,23 @@ export default function TicketsPendientesTab() {
     select: (data) => Array.isArray(data) ? data : [],
   });
 
-  const ticketsPendientes = tickets.filter(t =>
-    t.estado !== 'resuelto' && t.estado !== 'cancelado'
-  );
+  const filteredTickets = tickets
+    .filter((t) => filterEstado    === 'todos'  || t.estado    === filterEstado)
+    .filter((t) => filterPrioridad === 'todas'  || t.prioridad === filterPrioridad);
 
   const estadoColors = {
-    abierto:    'bg-yellow-100 text-yellow-800 border-yellow-200',
-    'en proceso': 'bg-purple-100 text-purple-800 border-purple-200',
-    resuelto:   'bg-green-100 text-green-800 border-green-200',
-    cancelado:  'bg-slate-100 text-slate-800 border-slate-200',
+    abierto:      'bg-yellow-100 text-yellow-800 border-yellow-200',
+    'en proceso':  'bg-purple-100 text-purple-800 border-purple-200',
+    en_proceso:    'bg-purple-100 text-purple-800 border-purple-200',
+    resuelto:      'bg-green-100 text-green-800 border-green-200',
+    cancelado:     'bg-slate-100 text-slate-800 border-slate-200',
   };
 
   const prioridadColors = {
-    baja: 'bg-green-100 text-green-800',
-    media: 'bg-yellow-100 text-yellow-800',
-    alta: 'bg-orange-100 text-orange-800',
-    critica: 'bg-red-100 text-red-800'
+    baja:   'bg-green-100 text-green-800',
+    media:  'bg-yellow-100 text-yellow-800',
+    alta:   'bg-orange-100 text-orange-800',
+    critica: 'bg-red-100 text-red-800',
   };
 
   if (isLoading) {
@@ -46,60 +51,94 @@ export default function TicketsPendientesTab() {
 
   return (
     <div className="space-y-6">
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-slate-600 whitespace-nowrap">Estado:</span>
+          <Select value={filterEstado} onValueChange={setFilterEstado}>
+            <SelectTrigger className="w-48">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos los estados</SelectItem>
+              <SelectItem value="abierto">Abierto</SelectItem>
+              <SelectItem value="en proceso">En proceso</SelectItem>
+              <SelectItem value="resuelto">Resuelto</SelectItem>
+              <SelectItem value="cancelado">Cancelado</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-slate-600 whitespace-nowrap">Prioridad:</span>
+          <Select value={filterPrioridad} onValueChange={setFilterPrioridad}>
+            <SelectTrigger className="w-52">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todas">Todas las prioridades</SelectItem>
+              <SelectItem value="baja">Baja</SelectItem>
+              <SelectItem value="media">Media</SelectItem>
+              <SelectItem value="alta">Alta</SelectItem>
+              <SelectItem value="critica">Crítica</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
       {/* Resumen */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-slate-900">{ticketsPendientes.length}</div>
-            <div className="text-sm text-slate-600 mt-1">Total Pendientes</div>
+            <div className="text-2xl font-bold text-slate-900">{tickets.length}</div>
+            <div className="text-sm text-slate-600 mt-1">Total</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-yellow-600">
-              {ticketsPendientes.filter(t => t.estado === 'pendiente').length}
+              {tickets.filter((t) => t.estado === 'abierto').length}
             </div>
-            <div className="text-sm text-slate-600 mt-1">Sin Asignar</div>
+            <div className="text-sm text-slate-600 mt-1">Abiertos</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-purple-600">
-              {ticketsPendientes.filter(t => t.estado === 'en_proceso').length}
+              {tickets.filter((t) => t.estado === 'en proceso' || t.estado === 'en_proceso').length}
             </div>
             <div className="text-sm text-slate-600 mt-1">En Proceso</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-red-600">
-              {ticketsPendientes.filter(t => t.prioridad === 'critica').length}
+            <div className="text-2xl font-bold text-green-600">
+              {tickets.filter((t) => t.estado === 'resuelto').length}
             </div>
-            <div className="text-sm text-slate-600 mt-1">Críticos</div>
+            <div className="text-sm text-slate-600 mt-1">Resueltos</div>
           </CardContent>
         </Card>
       </div>
 
       {/* Lista de Tickets */}
       <div className="space-y-4">
-        {ticketsPendientes.length === 0 ? (
+        {filteredTickets.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center text-slate-500">
-              No hay tickets pendientes
+              No hay tickets que coincidan con los filtros seleccionados
             </CardContent>
           </Card>
         ) : (
-          ticketsPendientes.map((ticket) => (
+          filteredTickets.map((ticket) => (
             <Card key={ticket.id} className="hover:shadow-lg transition-shadow">
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center space-x-3 mb-2">
                       <CardTitle className="text-lg">{ticket.numero_ticket}</CardTitle>
-                      <Badge variant="outline" className={`${estadoColors[ticket.estado]} border`}>
+                      <Badge variant="outline" className={`${estadoColors[ticket.estado] ?? 'bg-slate-100 text-slate-800 border-slate-200'} border`}>
                         {ticket.estado.replace(/_/g, ' ')}
                       </Badge>
-                      <Badge className={prioridadColors[ticket.prioridad]}>
+                      <Badge className={prioridadColors[ticket.prioridad] ?? 'bg-slate-100 text-slate-800'}>
                         {ticket.prioridad}
                       </Badge>
                     </div>

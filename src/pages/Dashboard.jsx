@@ -1,22 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { createPageUrl } from '../utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Package, Activity, FileText, AlertCircle, Database, LogOut, ShoppingCart, ClipboardList } from 'lucide-react';
+import { Package, Activity, FileText, Database, LogOut, ClipboardList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-import RefaccionesTab      from '../components/dashboard/RefaccionesTab';
-import ResumenVidaTab      from '../components/dashboard/ResumenVidaTab';
-import TicketTab           from '../components/dashboard/TicketTab';
-import TicketsPendientesTab from '../components/dashboard/TicketsPendientesTab';
-import PerfilFlotillaTab   from '../components/dashboard/PerfilFlotillaTab';
-import CotizacionTab       from '../components/dashboard/CotizacionTab';
-import CotizacionesAdminTab from '../components/dashboard/CotizacionesAdminTab';
-import AdminPanel          from '../components/admin/AdminPanel';
+import RefaccionesTab           from '../components/dashboard/RefaccionesTab';
+import ResumenVidaTab           from '../components/dashboard/ResumenVidaTab';
+import TicketsPendientesTab     from '../components/dashboard/TicketsPendientesTab';
+import PerfilFlotillaTab        from '../components/dashboard/PerfilFlotillaTab';
+import CotizacionesHistorialTab from '../components/dashboard/CotizacionesHistorialTab';
+import AdminPanel               from '../components/admin/AdminPanel';
 
 export default function Dashboard() {
-  const [user, setUser]     = useState(null);
+  const [user, setUser]       = useState(null);
   const [loading, setLoading] = useState(true);
-  const [cart, setCart]     = useState([]);
+  const [cart, setCart]       = useState([]);
 
   useEffect(() => { checkAuth(); }, []);
 
@@ -110,64 +108,48 @@ export default function Dashboard() {
               <span className="hidden sm:inline">Perfil Flotilla</span>
               <span className="sm:hidden">Flotilla</span>
             </TabsTrigger>
-            <TabsTrigger value="refacciones" className="flex items-center gap-2 py-2.5 px-3">
-              <Package className="w-4 h-4" />
-              <span>Refacciones</span>
-            </TabsTrigger>
-            <TabsTrigger value="cotizacion" className="flex items-center gap-2 py-2.5 px-3 relative">
-              <ShoppingCart className="w-4 h-4" />
-              <span>Cotización</span>
-              {cart.length > 0 && (
-                <span className="ml-1 bg-blue-600 text-white text-xs rounded-full px-1.5 py-0.5 leading-none">
-                  {cart.length}
-                </span>
-              )}
-            </TabsTrigger>
             <TabsTrigger value="vida" className="flex items-center gap-2 py-2.5 px-3">
               <Activity className="w-4 h-4" />
               <span className="hidden sm:inline">Vida Robot</span>
               <span className="sm:hidden">Vida</span>
             </TabsTrigger>
-            <TabsTrigger value="ticket" className="flex items-center gap-2 py-2.5 px-3">
+            <TabsTrigger value="refacciones" className="flex items-center gap-2 py-2.5 px-3">
+              <Package className="w-4 h-4" />
+              <span>Refacciones</span>
+            </TabsTrigger>
+            <TabsTrigger value="cotizaciones" className="flex items-center gap-2 py-2.5 px-3">
+              <ClipboardList className="w-4 h-4" />
+              <span>Cotizaciones</span>
+            </TabsTrigger>
+            <TabsTrigger value="tickets" className="flex items-center gap-2 py-2.5 px-3">
               <FileText className="w-4 h-4" />
-              <span>Ticket</span>
+              <span>Tickets</span>
             </TabsTrigger>
-            <TabsTrigger value="pendientes" className="flex items-center gap-2 py-2.5 px-3">
-              <AlertCircle className="w-4 h-4" />
-              <span className="hidden sm:inline">Pendientes</span>
-              <span className="sm:hidden">Pend.</span>
-            </TabsTrigger>
-            {isAdmin && (
-              <TabsTrigger value="admin-cotizaciones" className="flex items-center gap-2 py-2.5 px-3">
-                <ClipboardList className="w-4 h-4" />
-                <span>Cotizaciones</span>
-              </TabsTrigger>
-            )}
           </TabsList>
 
           <TabsContent value="flotilla">
             <PerfilFlotillaTab />
           </TabsContent>
-          <TabsContent value="refacciones">
-            <RefaccionesTab isAdmin={isAdmin} onAddToCart={isAdmin ? undefined : addToCart} />
-          </TabsContent>
-          <TabsContent value="cotizacion">
-            <CotizacionTab cart={cart} onRemove={removeFromCart} onUpdateQty={updateQty} onClear={clearCart} user={user} />
-          </TabsContent>
           <TabsContent value="vida">
             <ResumenVidaTab />
           </TabsContent>
-          <TabsContent value="ticket">
-            <TicketTab />
+          <TabsContent value="refacciones">
+            <RefaccionesTab
+              isAdmin={false}
+              onAddToCart={addToCart}
+              cart={cart}
+              onRemove={removeFromCart}
+              onUpdateQty={updateQty}
+              onClear={clearCart}
+              user={user}
+            />
           </TabsContent>
-          <TabsContent value="pendientes">
+          <TabsContent value="cotizaciones">
+            <CotizacionesHistorialTab />
+          </TabsContent>
+          <TabsContent value="tickets">
             <TicketsPendientesTab />
           </TabsContent>
-          {isAdmin && (
-            <TabsContent value="admin-cotizaciones">
-              <CotizacionesAdminTab />
-            </TabsContent>
-          )}
         </Tabs>
       </div>
     </div>

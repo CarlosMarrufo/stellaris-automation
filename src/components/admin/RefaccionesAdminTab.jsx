@@ -20,7 +20,7 @@ export default function RefaccionesAdminTab() {
   const [categoriaId, setCategoriaId] = useState('');
 
   const [editItem,  setEditItem]  = useState(null); // refaccion being edited
-  const [editForm,  setEditForm]  = useState({ descripcion: '', noParte: '', precioVenta: '' });
+  const [editForm,  setEditForm]  = useState({ descripcion: '', noParte: '', precioVenta: '', stockActual: '' });
   const [saving,    setSaving]    = useState(false);
   const [editError, setEditError] = useState('');
 
@@ -78,6 +78,7 @@ export default function RefaccionesAdminTab() {
       descripcion: item.nombre,
       noParte:     item.codigo,
       precioVenta: String(item.precio_venta),
+      stockActual: String(item.stock_disponible ?? ''),
     });
     setEditError('');
   };
@@ -101,6 +102,10 @@ export default function RefaccionesAdminTab() {
       if (editForm.descripcion.trim()) body.descripcion = editForm.descripcion.trim();
       if (editForm.noParte.trim())     body.noParte     = editForm.noParte.trim();
       body.precioVenta = precioNum;
+      const stockNum = Number(editForm.stockActual);
+      if (editForm.stockActual !== '' && !isNaN(stockNum) && stockNum >= 0) {
+        body.stockActual = stockNum;
+      }
 
       const res = await fetch(`/api/admin/refacciones/${editItem.id}`, {
         method:      'PATCH',
@@ -321,6 +326,17 @@ export default function RefaccionesAdminTab() {
                   step="0.01"
                   value={editForm.precioVenta}
                   onChange={(e) => setEditForm((f) => ({ ...f, precioVenta: e.target.value }))}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-stock">Stock Actual</Label>
+                <Input
+                  id="edit-stock"
+                  type="number"
+                  min={0}
+                  value={editForm.stockActual}
+                  onChange={(e) => setEditForm((f) => ({ ...f, stockActual: e.target.value }))}
                   className="mt-1"
                 />
               </div>

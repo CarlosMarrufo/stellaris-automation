@@ -64,7 +64,7 @@ export default function CotizacionTab({ cart, onRemove, onUpdateQty, onClear, us
           <PackageOpen className="w-12 h-12 text-slate-300 mx-auto" />
           <h3 className="text-lg font-medium text-slate-700">Tu cotización está vacía</h3>
           <p className="text-slate-500 text-sm">
-            Ve a la pestaña <strong>Precios</strong> y agrega las refacciones que necesitas.
+            Ve a la pestaña <strong>Refacciones</strong> y agrega las refacciones que necesitas.
           </p>
         </CardContent>
       </Card>

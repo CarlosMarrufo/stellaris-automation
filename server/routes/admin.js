@@ -46,6 +46,7 @@ const refaccionPatchSchema = z.object({
   descripcion: z.string().max(500).optional(),
   noParte:     z.string().max(100).optional(),
   precioVenta: z.number().min(0).optional(),
+  stockActual: z.number().int().min(0).optional(),
 });
 
 const ticketPatchSchema = z.object({
@@ -313,11 +314,16 @@ router.patch('/admin/refacciones/:id', async (req, res) => {
     return res.status(400).json({ error: 'Datos inválidos', details: parsed.error.flatten().fieldErrors });
   }
   try {
+    const data = {};
+    if (parsed.data.descripcion !== undefined) data.descripcion = parsed.data.descripcion;
+    if (parsed.data.noParte     !== undefined) data.noParte     = parsed.data.noParte;
+    if (parsed.data.precioVenta !== undefined) data.precioVenta = parsed.data.precioVenta;
+    if (parsed.data.stockActual !== undefined) data.stockActual = parsed.data.stockActual;
     const updated = await prisma.refaccion.update({
       where: { idRefaccion: id },
-      data:  parsed.data,
+      data,
     });
-    return res.json({ id: updated.idRefaccion, noParte: updated.noParte, descripcion: updated.descripcion, precioVenta: Number(updated.precioVenta) });
+    return res.json({ id: updated.idRefaccion, noParte: updated.noParte, descripcion: updated.descripcion, precioVenta: Number(updated.precioVenta), stockActual: updated.stockActual });
   } catch (err) {
     if (err.code === 'P2025') return res.status(404).json({ error: 'Refacción no encontrada' });
     console.error('[admin/refacciones PATCH]', err instanceof Error ? err.message : String(err));
