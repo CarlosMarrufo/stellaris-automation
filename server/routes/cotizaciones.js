@@ -15,7 +15,7 @@ const RECIPIENT = process.env.MICROSOFT_RECIPIENT_EMAIL || 'contacto@stellarisau
 const itemSchema = z.object({
   idRefaccion: z.number().int().positive(),
   cantidad:    z.number().int().positive(),
-  precioRef:   z.number().positive(),
+  precioRef:   z.number().min(0),
 });
 
 const cotizacionSchema = z.object({

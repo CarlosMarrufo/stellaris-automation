@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { createPageUrl } from '../utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Package, DollarSign, Activity, FileText, AlertCircle, Database, LogOut, ShoppingCart, ClipboardList } from 'lucide-react';
+import { Package, Activity, FileText, AlertCircle, Database, LogOut, ShoppingCart, ClipboardList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 import RefaccionesTab      from '../components/dashboard/RefaccionesTab';
-import PreciosTab          from '../components/dashboard/PreciosTab';
 import ResumenVidaTab      from '../components/dashboard/ResumenVidaTab';
 import TicketTab           from '../components/dashboard/TicketTab';
 import TicketsPendientesTab from '../components/dashboard/TicketsPendientesTab';
@@ -110,10 +109,6 @@ export default function Dashboard() {
               <Package className="w-4 h-4" />
               <span>Refacciones</span>
             </TabsTrigger>
-            <TabsTrigger value="precios" className="flex items-center gap-2 py-2.5 px-3">
-              <DollarSign className="w-4 h-4" />
-              <span>Precios</span>
-            </TabsTrigger>
             <TabsTrigger value="cotizacion" className="flex items-center gap-2 py-2.5 px-3 relative">
               <ShoppingCart className="w-4 h-4" />
               <span>Cotización</span>
@@ -149,10 +144,7 @@ export default function Dashboard() {
             <PerfilFlotillaTab />
           </TabsContent>
           <TabsContent value="refacciones">
-            <RefaccionesTab isAdmin={isAdmin} />
-          </TabsContent>
-          <TabsContent value="precios">
-            <PreciosTab isAdmin={isAdmin} onAddToCart={addToCart} />
+            <RefaccionesTab isAdmin={isAdmin} onAddToCart={addToCart} />
           </TabsContent>
           <TabsContent value="cotizacion">
             <CotizacionTab cart={cart} onRemove={removeFromCart} onUpdateQty={updateQty} onClear={clearCart} user={user} />

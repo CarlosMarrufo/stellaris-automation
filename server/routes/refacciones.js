@@ -13,7 +13,7 @@ const router = Router();
 router.get('/marcas', async (_req, res) => {
   try {
     const marcas = await prisma.marca.findMany({
-      where:   { activo: true },
+      where:   { activo: true, refacciones: { some: { activo: true } } },
       select:  { idMarca: true, marca: true },
       orderBy: { marca: 'asc' },
     });
@@ -29,6 +29,7 @@ router.get('/marcas', async (_req, res) => {
 router.get('/categorias', async (_req, res) => {
   try {
     const cats = await prisma.categoriaRefaccion.findMany({
+      where:   { refacciones: { some: { activo: true } } },
       select:  { idCategoria: true, nombre: true },
       orderBy: { nombre: 'asc' },
     });
