@@ -11,6 +11,7 @@ import TicketsPendientesTab from '../components/dashboard/TicketsPendientesTab';
 import PerfilFlotillaTab   from '../components/dashboard/PerfilFlotillaTab';
 import CotizacionTab       from '../components/dashboard/CotizacionTab';
 import CotizacionesAdminTab from '../components/dashboard/CotizacionesAdminTab';
+import AdminPanel          from '../components/admin/AdminPanel';
 
 export default function Dashboard() {
   const [user, setUser]     = useState(null);
@@ -76,6 +77,10 @@ export default function Dashboard() {
         </div>
       </div>
     );
+  }
+
+  if (isAdmin) {
+    return <AdminPanel user={user} onLogout={handleLogout} />;
   }
 
   return (

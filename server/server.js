@@ -33,6 +33,7 @@ import robotRoutes       from './routes/robots.js';
 import refaccionRoutes   from './routes/refacciones.js';
 import ticketRoutes      from './routes/tickets.js';
 import cotizacionRoutes  from './routes/cotizaciones.js';
+import adminRoutes       from './routes/admin.js';
 
 // ─── Startup: validación de variables de entorno ──────────────────────────────
 
@@ -249,6 +250,7 @@ app.use('/api', robotRoutes);
 app.use('/api', refaccionRoutes);
 app.use('/api', ticketRoutes);
 app.use('/api', cotizacionRoutes);
+app.use('/api', adminRoutes);
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
