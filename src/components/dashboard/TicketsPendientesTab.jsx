@@ -206,12 +206,12 @@ export default function TicketsPendientesTab() {
                   )}
                 </div>
 
-                {ticket.notas_tecnico && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                    <p className="text-xs text-blue-700 font-medium mb-1">Notas del Técnico:</p>
-                    <p className="text-sm text-blue-900">{ticket.notas_tecnico}</p>
-                  </div>
-                )}
+                <div className={`rounded-lg p-3 ${ticket.notas_tecnico ? 'bg-blue-50 border border-blue-200' : 'bg-slate-50 border border-slate-200'}`}>
+                  <p className={`text-xs font-medium mb-1 ${ticket.notas_tecnico ? 'text-blue-700' : 'text-slate-500'}`}>Notas del Técnico:</p>
+                  <p className={`text-sm ${ticket.notas_tecnico ? 'text-blue-900' : 'text-slate-400 italic'}`}>
+                    {ticket.notas_tecnico || 'Sin confirmar'}
+                  </p>
+                </div>
               </CardContent>
             </Card>
           ))

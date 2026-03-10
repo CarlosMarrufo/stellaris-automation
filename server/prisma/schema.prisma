@@ -209,6 +209,7 @@ model Ticket {
   idEstadoSolicitud Int       @map("id_estado_solicitud")
   fechaProgramada   DateTime? @map("fecha_programada") @db.Date
   detalle           String?   @db.Text
+  notasTecnico      String?   @map("notas_tecnico") @db.Text
   creado            DateTime  @default(now())
   actualizado       DateTime  @updatedAt @map("actualizado")
 
@@ -226,7 +227,7 @@ model Ticket {
 model Mantenimiento {
   idMantenimiento   Int       @id @default(autoincrement()) @map("id_mantenimiento")
   idCuenta          Int       @map("id_cuenta")
-  idTicket          Int       @map("id_ticket")
+  idTicket          Int?      @map("id_ticket")
   idRobot           Int       @map("id_robot")
   idFuente          Int?      @map("id_fuente")
   idTipoSolicitud   Int       @map("id_tipo_solicitud")
@@ -238,7 +239,7 @@ model Mantenimiento {
   actualizado       DateTime  @updatedAt @map("actualizado")
 
   cuenta            Cuenta          @relation(fields: [idCuenta], references: [idCuenta], onDelete: Restrict)
-  ticket            Ticket          @relation(fields: [idTicket], references: [idTicket], onDelete: Restrict)
+  ticket            Ticket?         @relation(fields: [idTicket], references: [idTicket], onDelete: Restrict)
   robot             Robot           @relation(fields: [idRobot], references: [idRobot], onDelete: Restrict)
   fuente            FuentePoder?    @relation(fields: [idFuente], references: [idFuente], onDelete: SetNull)
   tipoSolicitud     TipoSolicitud   @relation(fields: [idTipoSolicitud], references: [idTipoSolicitud], onDelete: Restrict)

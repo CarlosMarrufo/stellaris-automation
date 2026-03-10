@@ -54,6 +54,18 @@ const ticketPatchSchema = z.object({
   idEstadoSolicitud: z.number().int().positive().optional(),
   fechaProgramada:   z.string().optional().nullable(),
   motivo:            z.string().min(1, 'Motivo requerido').max(2000),
+  idEstadoRobot:     z.number().int().positive().optional(),
+});
+
+const mantenimientoCreateSchema = z.object({
+  idRobot:           z.number().int().positive(),
+  idTicket:          z.number().int().positive().optional().nullable(),
+  idFuente:          z.number().int().positive().optional().nullable(),
+  idTipoSolicitud:   z.number().int().positive(),
+  idEstadoSolicitud: z.number().int().positive(),
+  fechaMantenimiento: z.string().optional().nullable(),
+  costoTotal:        z.number().min(0).optional().nullable(),
+  reporte:           z.string().max(5000).optional().nullable(),
 });
 
 const cotizacionPatchSchema = z.object({
@@ -326,7 +338,7 @@ router.get('/admin/tickets', async (_req, res) => {
   try {
     const tickets = await prisma.ticket.findMany({
       include: {
-        robot:           { select: { modelo: true, noSerie: true, cliente: { select: { idCliente: true, nombre: true } } } },
+        robot:           { select: { idRobot: true, modelo: true, noSerie: true, estado: { select: { idEstado: true } }, cliente: { select: { idCliente: true, nombre: true } } } },
         cuenta:          { select: { nombre: true, correo: true } },
         tipoSolicitud:   { select: { tipo: true } },
         prioridad:       { select: { prioridad: true } },
@@ -341,6 +353,7 @@ router.get('/admin/tickets', async (_req, res) => {
       numero:            `TKT-${String(t.idTicket).padStart(5, '0')}`,
       cliente:           t.robot.cliente.nombre,
       idCliente:         t.robot.cliente.idCliente,
+      idRobot:           t.robot.idRobot,
       robot:             `${t.robot.modelo} — ${t.robot.noSerie}`,
       solicitante:       t.cuenta.nombre,
       correo:            t.cuenta.correo,
@@ -348,9 +361,11 @@ router.get('/admin/tickets', async (_req, res) => {
       prioridad:         t.prioridad.prioridad,
       estado:            t.estadoSolicitud.estado,
       idEstadoSolicitud: t.estadoSolicitud.idEstadoSolicitud,
+      idEstadoRobot:     t.robot.estado?.idEstado ?? null,
       fecha:             t.creado.toISOString().split('T')[0],
       fechaProgramada:   t.fechaProgramada ? t.fechaProgramada.toISOString().split('T')[0] : null,
       detalle:           t.detalle ?? '',
+      notasTecnico:      t.notasTecnico ?? null,
     }));
 
     return res.json(result);
@@ -466,16 +481,26 @@ router.patch('/admin/tickets/:id', async (req, res) => {
     if (parsed.data.fechaProgramada !== undefined) {
       data.fechaProgramada = parsed.data.fechaProgramada ? new Date(parsed.data.fechaProgramada) : null;
     }
+    // Persist motivo as notasTecnico
+    data.notasTecnico = parsed.data.motivo;
 
     const updated = await prisma.ticket.update({
       where:   { idTicket: id },
       data,
       include: {
-        robot:           { select: { modelo: true, noSerie: true, marca: { select: { marca: true } } } },
+        robot:           { select: { idRobot: true, modelo: true, noSerie: true, marca: { select: { marca: true } } } },
         cuenta:          { select: { nombre: true, correo: true } },
         estadoSolicitud: { select: { estado: true } },
       },
     });
+
+    // Optionally change robot estado
+    if (parsed.data.idEstadoRobot !== undefined) {
+      await prisma.robot.update({
+        where: { idRobot: updated.robot.idRobot },
+        data:  { idEstado: parsed.data.idEstadoRobot },
+      });
+    }
 
     // Send email notification to client about the update
     if (graphConfigured && updated.cuenta.correo) {
@@ -941,6 +966,84 @@ router.patch('/admin/fuentes/:id', async (req, res) => {
     if (err.code === 'P2025') return res.status(404).json({ error: 'Fuente no encontrada' });
     console.error('[admin/fuentes PATCH]', err instanceof Error ? err.message : String(err));
     return res.status(500).json({ error: 'Error al actualizar fuente de poder' });
+  }
+});
+
+// ─── GET /api/admin/mantenimientos ───────────────────────────────────────────
+
+router.get('/admin/mantenimientos', async (_req, res) => {
+  try {
+    const mantenimientos = await prisma.mantenimiento.findMany({
+      include: {
+        robot:           { select: { modelo: true, noSerie: true, marca: { select: { marca: true } }, cliente: { select: { idCliente: true, nombre: true } } } },
+        cuenta:          { select: { nombre: true } },
+        ticket:          { select: { idTicket: true } },
+        fuente:          { select: { modelo: true, noSerie: true } },
+        tipoSolicitud:   { select: { tipo: true } },
+        estadoSolicitud: { select: { estado: true } },
+      },
+      orderBy: { creado: 'desc' },
+      take: 500,
+    });
+
+    const result = mantenimientos.map((m) => ({
+      id:                  m.idMantenimiento,
+      folio:               `MNT-${String(m.idMantenimiento).padStart(5, '0')}`,
+      cliente:             m.robot.cliente.nombre,
+      idCliente:           m.robot.cliente.idCliente,
+      robot:               `${m.robot.marca.marca} ${m.robot.modelo} — ${m.robot.noSerie}`,
+      tecnico:             m.cuenta.nombre,
+      ticket:              m.ticket ? `TKT-${String(m.ticket.idTicket).padStart(5, '0')}` : null,
+      idTicket:            m.idTicket,
+      fuente:              m.fuente ? `${m.fuente.modelo} — ${m.fuente.noSerie}` : null,
+      tipo:                m.tipoSolicitud.tipo,
+      estado:              m.estadoSolicitud.estado,
+      fechaMantenimiento:  m.fechaMantenimiento ? m.fechaMantenimiento.toISOString().split('T')[0] : null,
+      costoTotal:          m.costoTotal ? Number(m.costoTotal) : null,
+      reporte:             m.reporte ?? '',
+      fecha:               m.creado.toISOString().split('T')[0],
+    }));
+
+    return res.json(result);
+  } catch (err) {
+    console.error('[admin/mantenimientos GET]', err instanceof Error ? err.message : String(err));
+    return res.status(500).json({ error: 'Error al obtener mantenimientos' });
+  }
+});
+
+// ─── POST /api/admin/mantenimientos ──────────────────────────────────────────
+
+router.post('/admin/mantenimientos', async (req, res) => {
+  const parsed = mantenimientoCreateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Datos inválidos', details: parsed.error.flatten().fieldErrors });
+  }
+
+  const { idRobot, idTicket, idFuente, idTipoSolicitud, idEstadoSolicitud, fechaMantenimiento, costoTotal, reporte } = parsed.data;
+
+  try {
+    const mantenimiento = await prisma.mantenimiento.create({
+      data: {
+        idCuenta:          req.user.idCuenta,
+        idRobot,
+        idTicket:          idTicket || null,
+        idFuente:          idFuente || null,
+        idTipoSolicitud,
+        idEstadoSolicitud,
+        fechaMantenimiento: fechaMantenimiento ? new Date(fechaMantenimiento) : null,
+        costoTotal:        costoTotal ?? null,
+        reporte:           reporte || null,
+      },
+    });
+
+    return res.status(201).json({
+      success: true,
+      id:      mantenimiento.idMantenimiento,
+      folio:   `MNT-${String(mantenimiento.idMantenimiento).padStart(5, '0')}`,
+    });
+  } catch (err) {
+    console.error('[admin/mantenimientos POST]', err instanceof Error ? err.message : String(err));
+    return res.status(500).json({ error: 'Error al crear mantenimiento' });
   }
 });
 

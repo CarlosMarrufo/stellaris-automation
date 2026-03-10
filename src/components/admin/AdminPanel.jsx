@@ -2,12 +2,13 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { LogOut, Users, Package, FileText, ClipboardList } from 'lucide-react';
+import { LogOut, Users, Package, FileText, ClipboardList, Wrench } from 'lucide-react';
 
-import ClientesTab          from './ClientesTab';
-import RefaccionesAdminTab  from './RefaccionesAdminTab';
-import TicketsAdminTab      from './TicketsAdminTab';
-import CotizacionesAdminTab from './CotizacionesAdminTab';
+import ClientesTab             from './ClientesTab';
+import RefaccionesAdminTab     from './RefaccionesAdminTab';
+import TicketsAdminTab         from './TicketsAdminTab';
+import CotizacionesAdminTab    from './CotizacionesAdminTab';
+import MantenimientosAdminTab  from './MantenimientosAdminTab';
 
 function PendingDot() {
   return (
@@ -84,6 +85,10 @@ export default function AdminPanel({ user, onLogout }) {
               <span>Cotizaciones</span>
               {cotizacionesPendientes > 0 && <PendingDot />}
             </TabsTrigger>
+            <TabsTrigger value="mantenimientos" className="flex items-center gap-2 py-2.5 px-4">
+              <Wrench className="w-4 h-4" />
+              <span>Mantenimientos</span>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="clientes">
@@ -97,6 +102,9 @@ export default function AdminPanel({ user, onLogout }) {
           </TabsContent>
           <TabsContent value="cotizaciones">
             <CotizacionesAdminTab />
+          </TabsContent>
+          <TabsContent value="mantenimientos">
+            <MantenimientosAdminTab />
           </TabsContent>
         </Tabs>
       </div>

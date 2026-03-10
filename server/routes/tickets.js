@@ -54,6 +54,7 @@ router.get('/tickets', async (req, res) => {
       prioridad:       t.prioridad.prioridad.toLowerCase(),
       estado:          t.estadoSolicitud.estado.toLowerCase(),
       descripcion:     t.detalle ?? '',
+      notas_tecnico:   t.notasTecnico ?? null,
       fecha_creacion:  t.creado.toISOString().split('T')[0],
       fecha_programada: t.fechaProgramada ? t.fechaProgramada.toISOString().split('T')[0] : null,
       tecnico_asignado: null,

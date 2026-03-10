@@ -3,12 +3,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
   AlertCircle, Clock, Calendar, Building2, Search,
-  ChevronDown, ChevronUp, Save,
+  ChevronDown, ChevronUp, Save, Wrench, X,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -35,7 +36,10 @@ export default function TicketsAdminTab() {
   const [filterCliente,   setFilterCliente]   = useState('todos');
   const [searchText,      setSearchText]      = useState('');
   const [expandedId,      setExpandedId]      = useState(null);
-  const [editState,       setEditState]       = useState({}); // { [ticketId]: { estado, fecha, motivo } }
+  const [editState,       setEditState]       = useState({}); // { [ticketId]: { estado, fecha, motivo, estadoRobot } }
+  const [mantDialog,      setMantDialog]      = useState(null); // ticket object for mantenimiento creation
+  const [mantForm,        setMantForm]        = useState({ idTipoSolicitud: '', idEstadoSolicitud: '', fecha: '', costoTotal: '', reporte: '' });
+  const [mantError,       setMantError]       = useState('');
 
   const { data: tickets = [], isLoading } = useQuery({
     queryKey: ['admin-tickets'],
@@ -56,10 +60,11 @@ export default function TicketsAdminTab() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, idEstadoSolicitud, fechaProgramada, motivo }) => {
+    mutationFn: async ({ id, idEstadoSolicitud, fechaProgramada, motivo, idEstadoRobot }) => {
       const body = { motivo };
       if (idEstadoSolicitud !== undefined) body.idEstadoSolicitud = idEstadoSolicitud;
       if (fechaProgramada !== undefined)   body.fechaProgramada = fechaProgramada || null;
+      if (idEstadoRobot !== undefined)     body.idEstadoRobot = idEstadoRobot;
       const res = await fetch(`/api/admin/tickets/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -80,6 +85,29 @@ export default function TicketsAdminTab() {
         return next;
       });
     },
+  });
+
+  const mantMutation = useMutation({
+    mutationFn: async (data) => {
+      const res = await fetch('/api/admin/mantenimientos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error ?? 'Error al crear mantenimiento');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-mantenimientos'] });
+      setMantDialog(null);
+      setMantForm({ idTipoSolicitud: '', idEstadoSolicitud: '', fecha: '', costoTotal: '', reporte: '' });
+      setMantError('');
+    },
+    onError: (err) => setMantError(err.message),
   });
 
   // Unique clients for filter
@@ -265,26 +293,35 @@ export default function TicketsAdminTab() {
                       </div>
                     )}
 
-                    {/* Admin actions: change status + confirm fecha + motivo */}
+                    {/* Nota técnico existente */}
+                    {ticket.notasTecnico && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                        <p className="text-xs text-blue-700 font-medium mb-1">Nota técnica anterior:</p>
+                        <p className="text-sm text-blue-900">{ticket.notasTecnico}</p>
+                      </div>
+                    )}
+
+                    {/* Admin actions: change status + confirm fecha + motivo + robot estado */}
                     {catalogos?.estados && (() => {
-                      const es = editState[ticket.id] ?? {
-                        estado: String(ticket.idEstadoSolicitud),
-                        fecha:  ticket.fechaProgramada ?? '',
-                        motivo: '',
+                      const defaults = {
+                        estado:      String(ticket.idEstadoSolicitud),
+                        fecha:       ticket.fechaProgramada ?? '',
+                        motivo:      '',
+                        estadoRobot: ticket.idEstadoRobot ? String(ticket.idEstadoRobot) : '',
                       };
                       const updateField = (field, value) =>
                         setEditState((prev) => ({
                           ...prev,
-                          [ticket.id]: { ...es, ...prev[ticket.id], [field]: value },
+                          [ticket.id]: { ...defaults, ...prev[ticket.id], [field]: value },
                         }));
-                      const current = editState[ticket.id] ?? es;
+                      const current = editState[ticket.id] ?? defaults;
                       const canSave = current.motivo?.trim().length > 0;
 
                       return (
                         <div className="pt-3 border-t border-slate-200 space-y-3">
                           <div className="flex flex-wrap items-center gap-3">
                             <div className="flex items-center gap-2">
-                              <span className="text-sm text-slate-600">Estado:</span>
+                              <span className="text-sm text-slate-600">Estado Ticket:</span>
                               <Select
                                 value={current.estado}
                                 onValueChange={(v) => updateField('estado', v)}
@@ -310,6 +347,26 @@ export default function TicketsAdminTab() {
                                 className="w-44"
                               />
                             </div>
+                            {catalogos.estadosRobot && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm text-slate-600">Estado Robot:</span>
+                                <Select
+                                  value={current.estadoRobot}
+                                  onValueChange={(v) => updateField('estadoRobot', v)}
+                                >
+                                  <SelectTrigger className="w-44">
+                                    <SelectValue placeholder="Sin cambio" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {catalogos.estadosRobot.map((e) => (
+                                      <SelectItem key={e.idEstado} value={String(e.idEstado)}>
+                                        {e.estado}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            )}
                           </div>
 
                           <div>
@@ -332,11 +389,27 @@ export default function TicketsAdminTab() {
                                 idEstadoSolicitud: Number(current.estado),
                                 fechaProgramada: current.fecha || null,
                                 motivo: current.motivo.trim(),
+                                ...(current.estadoRobot && current.estadoRobot !== String(ticket.idEstadoRobot)
+                                  ? { idEstadoRobot: Number(current.estadoRobot) }
+                                  : {}),
                               })}
                               className="bg-blue-600 hover:bg-blue-700"
                             >
                               <Save className="w-3.5 h-3.5 mr-1.5" />
                               {updateMutation.isPending ? 'Guardando...' : 'Guardar Cambios'}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+                              onClick={() => {
+                                setMantDialog(ticket);
+                                setMantForm({ idTipoSolicitud: '', idEstadoSolicitud: '', fecha: '', costoTotal: '', reporte: '' });
+                                setMantError('');
+                              }}
+                            >
+                              <Wrench className="w-3.5 h-3.5 mr-1.5" />
+                              Crear Mantenimiento
                             </Button>
                             {!canSave && (
                               <span className="text-xs text-amber-600">Ingrese un motivo para guardar</span>
@@ -359,6 +432,81 @@ export default function TicketsAdminTab() {
       <p className="text-xs text-slate-400 text-right">
         Mostrando {filtered.length} de {tickets.length} tickets
       </p>
+
+      {/* Crear Mantenimiento Dialog */}
+      {mantDialog && catalogos && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 space-y-5">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-slate-900">Crear Mantenimiento</h3>
+              <button onClick={() => setMantDialog(null)} className="text-slate-400 hover:text-slate-700">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-xs text-slate-500">
+              Ticket: <span className="font-mono font-semibold">{mantDialog.numero}</span> — {mantDialog.robot}
+            </p>
+
+            <div className="space-y-3">
+              <div>
+                <Label>Tipo de Solicitud</Label>
+                <Select value={mantForm.idTipoSolicitud} onValueChange={(v) => setMantForm((f) => ({ ...f, idTipoSolicitud: v }))}>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Seleccionar tipo" /></SelectTrigger>
+                  <SelectContent>
+                    {catalogos.tipos?.map((t) => (
+                      <SelectItem key={t.idTipoSolicitud} value={String(t.idTipoSolicitud)}>{t.tipo}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Estado del Mantenimiento</Label>
+                <Select value={mantForm.idEstadoSolicitud} onValueChange={(v) => setMantForm((f) => ({ ...f, idEstadoSolicitud: v }))}>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Seleccionar estado" /></SelectTrigger>
+                  <SelectContent>
+                    {catalogos.estados?.map((e) => (
+                      <SelectItem key={e.idEstadoSolicitud} value={String(e.idEstadoSolicitud)}>{e.estado}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Fecha de Mantenimiento</Label>
+                <Input type="date" value={mantForm.fecha} onChange={(e) => setMantForm((f) => ({ ...f, fecha: e.target.value }))} className="mt-1" />
+              </div>
+              <div>
+                <Label>Costo Total (opcional)</Label>
+                <Input type="number" min={0} step="0.01" value={mantForm.costoTotal} onChange={(e) => setMantForm((f) => ({ ...f, costoTotal: e.target.value }))} className="mt-1" placeholder="0.00" />
+              </div>
+              <div>
+                <Label>Reporte (opcional)</Label>
+                <Textarea value={mantForm.reporte} onChange={(e) => setMantForm((f) => ({ ...f, reporte: e.target.value }))} rows={3} className="mt-1 text-sm" placeholder="Descripción del mantenimiento realizado..." />
+              </div>
+            </div>
+
+            {mantError && <p className="text-sm text-red-600">{mantError}</p>}
+
+            <div className="flex gap-2 pt-1">
+              <Button variant="outline" className="flex-1" onClick={() => setMantDialog(null)} disabled={mantMutation.isPending}>Cancelar</Button>
+              <Button
+                className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+                disabled={!mantForm.idTipoSolicitud || !mantForm.idEstadoSolicitud || mantMutation.isPending}
+                onClick={() => mantMutation.mutate({
+                  idRobot:           mantDialog.idRobot,
+                  idTicket:          mantDialog.id,
+                  idTipoSolicitud:   Number(mantForm.idTipoSolicitud),
+                  idEstadoSolicitud: Number(mantForm.idEstadoSolicitud),
+                  fechaMantenimiento: mantForm.fecha || null,
+                  costoTotal:        mantForm.costoTotal ? parseFloat(mantForm.costoTotal) : null,
+                  reporte:           mantForm.reporte || null,
+                })}
+              >
+                {mantMutation.isPending ? 'Creando...' : 'Crear Mantenimiento'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
