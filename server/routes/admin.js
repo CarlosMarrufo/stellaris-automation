@@ -51,10 +51,10 @@ const refaccionPatchSchema = z.object({
 });
 
 const ticketPatchSchema = z.object({
-  idEstadoSolicitud: z.number().int().positive().optional(),
+  idEstadoSolicitud: z.number().int().positive(),
   fechaProgramada:   z.string().optional().nullable(),
   motivo:            z.string().min(1, 'Motivo requerido').max(2000),
-  idEstadoRobot:     z.number().int().positive().optional(),
+  idEstadoRobot:     z.number().int().positive(),
 });
 
 const mantenimientoCreateSchema = z.object({
@@ -476,13 +476,23 @@ router.patch('/admin/tickets/:id', async (req, res) => {
   }
 
   try {
-    const data = {};
-    if (parsed.data.idEstadoSolicitud !== undefined) data.idEstadoSolicitud = parsed.data.idEstadoSolicitud;
+    // Fetch current ticket + robot state before updating
+    const current = await prisma.ticket.findUnique({
+      where: { idTicket: id },
+      select: {
+        idEstadoSolicitud: true,
+        robot: { select: { idRobot: true, idEstado: true } },
+      },
+    });
+    if (!current) return res.status(404).json({ error: 'Ticket no encontrado' });
+
+    const data = {
+      idEstadoSolicitud: parsed.data.idEstadoSolicitud,
+      notasTecnico: parsed.data.motivo,
+    };
     if (parsed.data.fechaProgramada !== undefined) {
       data.fechaProgramada = parsed.data.fechaProgramada ? new Date(parsed.data.fechaProgramada) : null;
     }
-    // Persist motivo as notasTecnico
-    data.notasTecnico = parsed.data.motivo;
 
     const updated = await prisma.ticket.update({
       where:   { idTicket: id },
@@ -494,13 +504,24 @@ router.patch('/admin/tickets/:id', async (req, res) => {
       },
     });
 
-    // Optionally change robot estado
-    if (parsed.data.idEstadoRobot !== undefined) {
-      await prisma.robot.update({
-        where: { idRobot: updated.robot.idRobot },
-        data:  { idEstado: parsed.data.idEstadoRobot },
-      });
-    }
+    // Change robot estado (required)
+    await prisma.robot.update({
+      where: { idRobot: updated.robot.idRobot },
+      data:  { idEstado: parsed.data.idEstadoRobot },
+    });
+
+    // Create history entry
+    await prisma.historialTicket.create({
+      data: {
+        idTicket:              id,
+        idCuenta:              req.user.idCuenta,
+        idEstadoAnterior:      current.idEstadoSolicitud,
+        idEstadoNuevo:         parsed.data.idEstadoSolicitud,
+        idEstadoRobotAnterior: current.robot.idEstado,
+        idEstadoRobotNuevo:    parsed.data.idEstadoRobot,
+        motivo:                parsed.data.motivo,
+      },
+    });
 
     // Send email notification to client about the update
     if (graphConfigured && updated.cuenta.correo) {
@@ -530,6 +551,43 @@ router.patch('/admin/tickets/:id', async (req, res) => {
     if (err.code === 'P2025') return res.status(404).json({ error: 'Ticket no encontrado' });
     console.error('[admin/tickets PATCH]', err instanceof Error ? err.message : String(err));
     return res.status(500).json({ error: 'Error al actualizar ticket' });
+  }
+});
+
+// ─── GET /api/admin/tickets/:id/historial ────────────────────────────────────
+
+router.get('/admin/tickets/:id/historial', async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) return res.status(400).json({ error: 'ID inválido' });
+
+  try {
+    const entries = await prisma.historialTicket.findMany({
+      where: { idTicket: id },
+      include: {
+        cuenta:              { select: { nombre: true } },
+        estadoAnterior:      { select: { estado: true } },
+        estadoNuevo:         { select: { estado: true } },
+        estadoRobotAnterior: { select: { estado: true } },
+        estadoRobotNuevo:    { select: { estado: true } },
+      },
+      orderBy: { creado: 'desc' },
+    });
+
+    const result = entries.map((e) => ({
+      id:                  e.idHistorial,
+      fecha:               e.creado.toISOString(),
+      usuario:             e.cuenta.nombre,
+      estadoAnterior:      e.estadoAnterior.estado,
+      estadoNuevo:         e.estadoNuevo.estado,
+      estadoRobotAnterior: e.estadoRobotAnterior?.estado ?? null,
+      estadoRobotNuevo:    e.estadoRobotNuevo?.estado ?? null,
+      motivo:              e.motivo,
+    }));
+
+    return res.json(result);
+  } catch (err) {
+    console.error('[admin/tickets historial]', err instanceof Error ? err.message : String(err));
+    return res.status(500).json({ error: 'Error al obtener historial' });
   }
 });
 

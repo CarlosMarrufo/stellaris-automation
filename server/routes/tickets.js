@@ -67,6 +67,51 @@ router.get('/tickets', async (req, res) => {
   }
 });
 
+// ─── GET /api/tickets/:id/historial ───────────────────────────────────────────
+
+router.get('/tickets/:id/historial', async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) return res.status(400).json({ error: 'ID inválido' });
+
+  try {
+    const { idCuenta, idRol } = req.user;
+
+    // Verify ownership (non-admin can only see their own tickets)
+    if (idRol !== 1) {
+      const ticket = await prisma.ticket.findFirst({ where: { idTicket: id, idCuenta } });
+      if (!ticket) return res.status(404).json({ error: 'Ticket no encontrado' });
+    }
+
+    const entries = await prisma.historialTicket.findMany({
+      where: { idTicket: id },
+      include: {
+        cuenta:              { select: { nombre: true } },
+        estadoAnterior:      { select: { estado: true } },
+        estadoNuevo:         { select: { estado: true } },
+        estadoRobotAnterior: { select: { estado: true } },
+        estadoRobotNuevo:    { select: { estado: true } },
+      },
+      orderBy: { creado: 'desc' },
+    });
+
+    const result = entries.map((e) => ({
+      id:                  e.idHistorial,
+      fecha:               e.creado.toISOString(),
+      usuario:             e.cuenta.nombre,
+      estadoAnterior:      e.estadoAnterior.estado,
+      estadoNuevo:         e.estadoNuevo.estado,
+      estadoRobotAnterior: e.estadoRobotAnterior?.estado ?? null,
+      estadoRobotNuevo:    e.estadoRobotNuevo?.estado ?? null,
+      motivo:              e.motivo,
+    }));
+
+    return res.json(result);
+  } catch (err) {
+    console.error('[api/tickets historial]', err instanceof Error ? err.message : String(err));
+    return res.status(500).json({ error: 'Error al obtener historial' });
+  }
+});
+
 // ─── POST /api/tickets ────────────────────────────────────────────────────────
 
 router.post('/tickets', async (req, res) => {

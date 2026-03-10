@@ -9,10 +9,66 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
   AlertCircle, Clock, Calendar, Building2, Search,
-  ChevronDown, ChevronUp, Save, Wrench, X,
+  ChevronDown, ChevronUp, Save, Wrench, X, History, ArrowRight,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+
+function HistorialTimeline({ ticketId, isAdmin }) {
+  const endpoint = isAdmin ? `/api/admin/tickets/${ticketId}/historial` : `/api/tickets/${ticketId}/historial`;
+  const { data: historial = [], isLoading } = useQuery({
+    queryKey: ['ticket-historial', ticketId],
+    queryFn: async () => {
+      const res = await fetch(endpoint, { credentials: 'include' });
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
+  if (isLoading) return <p className="text-xs text-slate-400 py-2">Cargando historial...</p>;
+  if (historial.length === 0) return <p className="text-xs text-slate-400 py-2 italic">Sin cambios registrados</p>;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
+        <History className="w-4 h-4" />
+        Historial de cambios
+      </div>
+      <div className="relative pl-6 space-y-3">
+        <div className="absolute left-2.5 top-1 bottom-1 w-px bg-slate-200" />
+        {historial.map((h) => (
+          <div key={h.id} className="relative">
+            <div className="absolute -left-[14px] top-1.5 w-2.5 h-2.5 rounded-full bg-blue-500 border-2 border-white shadow-sm" />
+            <div className="bg-white border border-slate-200 rounded-lg p-3 text-sm space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-slate-800">{h.usuario}</span>
+                <span className="text-xs text-slate-400">
+                  {new Date(h.fecha).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <span className="text-slate-500">Ticket:</span>
+                <span className="font-medium text-slate-700">{h.estadoAnterior}</span>
+                <ArrowRight className="w-3 h-3 text-slate-400" />
+                <span className="font-semibold text-blue-700">{h.estadoNuevo}</span>
+                {h.estadoRobotAnterior && h.estadoRobotNuevo && (
+                  <>
+                    <span className="text-slate-300 mx-1">|</span>
+                    <span className="text-slate-500">Robot:</span>
+                    <span className="font-medium text-slate-700">{h.estadoRobotAnterior}</span>
+                    <ArrowRight className="w-3 h-3 text-slate-400" />
+                    <span className="font-semibold text-purple-700">{h.estadoRobotNuevo}</span>
+                  </>
+                )}
+              </div>
+              <p className="text-slate-600 text-xs bg-slate-50 rounded p-2">{h.motivo}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 const estadoColors = {
   abierto:      'bg-yellow-100 text-yellow-800 border-yellow-200',
@@ -79,6 +135,7 @@ export default function TicketsAdminTab() {
     },
     onSuccess: (_data, vars) => {
       queryClient.invalidateQueries({ queryKey: ['admin-tickets'] });
+      queryClient.invalidateQueries({ queryKey: ['ticket-historial', vars.id] });
       setEditState((prev) => {
         const next = { ...prev };
         delete next[vars.id];
@@ -301,6 +358,9 @@ export default function TicketsAdminTab() {
                       </div>
                     )}
 
+                    {/* Historial de cambios */}
+                    <HistorialTimeline ticketId={ticket.id} isAdmin />
+
                     {/* Admin actions: change status + confirm fecha + motivo + robot estado */}
                     {catalogos?.estados && (() => {
                       const defaults = {
@@ -315,7 +375,7 @@ export default function TicketsAdminTab() {
                           [ticket.id]: { ...defaults, ...prev[ticket.id], [field]: value },
                         }));
                       const current = editState[ticket.id] ?? defaults;
-                      const canSave = current.motivo?.trim().length > 0;
+                      const canSave = current.motivo?.trim().length > 0 && current.estadoRobot;
 
                       return (
                         <div className="pt-3 border-t border-slate-200 space-y-3">
@@ -389,9 +449,7 @@ export default function TicketsAdminTab() {
                                 idEstadoSolicitud: Number(current.estado),
                                 fechaProgramada: current.fecha || null,
                                 motivo: current.motivo.trim(),
-                                ...(current.estadoRobot && current.estadoRobot !== String(ticket.idEstadoRobot)
-                                  ? { idEstadoRobot: Number(current.estadoRobot) }
-                                  : {}),
+                                idEstadoRobot: Number(current.estadoRobot),
                               })}
                               className="bg-blue-600 hover:bg-blue-700"
                             >
@@ -412,7 +470,9 @@ export default function TicketsAdminTab() {
                               Crear Mantenimiento
                             </Button>
                             {!canSave && (
-                              <span className="text-xs text-amber-600">Ingrese un motivo para guardar</span>
+                              <span className="text-xs text-amber-600">
+                                {!current.estadoRobot ? 'Seleccione estado del robot' : 'Ingrese un motivo para guardar'}
+                              </span>
                             )}
                             {updateMutation.isError && (
                               <span className="text-xs text-red-600">{updateMutation.error?.message}</span>

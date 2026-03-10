@@ -42,6 +42,8 @@ model EstadoRobot {
   estado   String   @db.VarChar(50)
 
   robots   Robot[]
+  historialAnterior HistorialTicket[] @relation("historial_robot_anterior")
+  historialNuevo    HistorialTicket[] @relation("historial_robot_nuevo")
 
   @@map("estado_robot")
 }
@@ -71,6 +73,8 @@ model EstadoSolicitud {
 
   tickets           Ticket[]
   mantenimientos    Mantenimiento[]
+  historialAnterior HistorialTicket[] @relation("historial_estado_anterior")
+  historialNuevo    HistorialTicket[] @relation("historial_estado_nuevo")
 
   @@map("estado_solicitud")
 }
@@ -100,6 +104,7 @@ model Cuenta {
   tickets      Ticket[]
   mantenimientos Mantenimiento[]
   cotizaciones Cotizacion[]
+  historialTickets HistorialTicket[]
 
   @@map("cuenta")
 }
@@ -220,8 +225,30 @@ model Ticket {
   tipoSolicitud     TipoSolicitud   @relation(fields: [idTipoSolicitud], references: [idTipoSolicitud], onDelete: Restrict)
   estadoSolicitud   EstadoSolicitud @relation(fields: [idEstadoSolicitud], references: [idEstadoSolicitud], onDelete: Restrict)
   mantenimientos    Mantenimiento[]
+  historial         HistorialTicket[]
 
   @@map("ticket")
+}
+
+model HistorialTicket {
+  idHistorial           Int       @id @default(autoincrement()) @map("id_historial")
+  idTicket              Int       @map("id_ticket")
+  idCuenta              Int       @map("id_cuenta")
+  idEstadoAnterior      Int       @map("id_estado_anterior")
+  idEstadoNuevo         Int       @map("id_estado_nuevo")
+  idEstadoRobotAnterior Int?      @map("id_estado_robot_anterior")
+  idEstadoRobotNuevo    Int?      @map("id_estado_robot_nuevo")
+  motivo                String    @db.Text
+  creado                DateTime  @default(now())
+
+  ticket                Ticket          @relation(fields: [idTicket], references: [idTicket], onDelete: Cascade)
+  cuenta                Cuenta          @relation(fields: [idCuenta], references: [idCuenta], onDelete: Restrict)
+  estadoAnterior        EstadoSolicitud @relation("historial_estado_anterior", fields: [idEstadoAnterior], references: [idEstadoSolicitud], onDelete: Restrict)
+  estadoNuevo           EstadoSolicitud @relation("historial_estado_nuevo", fields: [idEstadoNuevo], references: [idEstadoSolicitud], onDelete: Restrict)
+  estadoRobotAnterior   EstadoRobot?    @relation("historial_robot_anterior", fields: [idEstadoRobotAnterior], references: [idEstado], onDelete: Restrict)
+  estadoRobotNuevo      EstadoRobot?    @relation("historial_robot_nuevo", fields: [idEstadoRobotNuevo], references: [idEstado], onDelete: Restrict)
+
+  @@map("historial_ticket")
 }
 
 model Mantenimiento {
