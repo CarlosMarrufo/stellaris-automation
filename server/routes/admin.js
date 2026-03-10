@@ -15,6 +15,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import bcrypt from 'bcrypt';
 import prisma from '../lib/prisma.js';
+import { graphConfigured, getGraphToken, sendMailViaGraph, esc } from '../lib/graph.js';
 
 const router = Router();
 
@@ -50,7 +51,9 @@ const refaccionPatchSchema = z.object({
 });
 
 const ticketPatchSchema = z.object({
-  idEstadoSolicitud: z.number().int().positive(),
+  idEstadoSolicitud: z.number().int().positive().optional(),
+  fechaProgramada:   z.string().optional().nullable(),
+  motivo:            z.string().min(1, 'Motivo requerido').max(2000),
 });
 
 const cotizacionPatchSchema = z.object({
@@ -456,11 +459,47 @@ router.patch('/admin/tickets/:id', async (req, res) => {
   if (!parsed.success) {
     return res.status(400).json({ error: 'Datos inválidos', details: parsed.error.flatten().fieldErrors });
   }
+
   try {
+    const data = {};
+    if (parsed.data.idEstadoSolicitud !== undefined) data.idEstadoSolicitud = parsed.data.idEstadoSolicitud;
+    if (parsed.data.fechaProgramada !== undefined) {
+      data.fechaProgramada = parsed.data.fechaProgramada ? new Date(parsed.data.fechaProgramada) : null;
+    }
+
     const updated = await prisma.ticket.update({
-      where: { idTicket: id },
-      data:  { idEstadoSolicitud: parsed.data.idEstadoSolicitud },
+      where:   { idTicket: id },
+      data,
+      include: {
+        robot:           { select: { modelo: true, noSerie: true, marca: { select: { marca: true } } } },
+        cuenta:          { select: { nombre: true, correo: true } },
+        estadoSolicitud: { select: { estado: true } },
+      },
     });
+
+    // Send email notification to client about the update
+    if (graphConfigured && updated.cuenta.correo) {
+      try {
+        const numTicket = `TKT-${String(updated.idTicket).padStart(5, '0')}`;
+        const token = await getGraphToken();
+        await sendMailViaGraph(token, {
+          to: updated.cuenta.correo,
+          subject: `[Stellaris] Actualización de ticket ${numTicket}`,
+          html: buildTicketUpdateEmail({
+            numTicket,
+            robot:      `${updated.robot.marca.marca} ${updated.robot.modelo} — ${updated.robot.noSerie}`,
+            nuevoEstado: updated.estadoSolicitud.estado,
+            motivo:      parsed.data.motivo,
+            fechaProgramada: updated.fechaProgramada
+              ? updated.fechaProgramada.toISOString().split('T')[0]
+              : null,
+          }),
+        });
+      } catch (emailErr) {
+        console.error('[admin/tickets email]', emailErr instanceof Error ? emailErr.message : String(emailErr));
+      }
+    }
+
     return res.json({ id: updated.idTicket, idEstadoSolicitud: updated.idEstadoSolicitud });
   } catch (err) {
     if (err.code === 'P2025') return res.status(404).json({ error: 'Ticket no encontrado' });
@@ -468,6 +507,36 @@ router.patch('/admin/tickets/:id', async (req, res) => {
     return res.status(500).json({ error: 'Error al actualizar ticket' });
   }
 });
+
+function buildTicketUpdateEmail({ numTicket, robot, nuevoEstado, motivo, fechaProgramada }) {
+  return `<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%" style="background:#f1f5f9;padding:32px 0;"><tr><td align="center">
+    <table width="600" style="max-width:600px;width:100%;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08);">
+      <tr><td style="background:linear-gradient(135deg,#1a0a3e 0%,#3d1478 40%,#9b3010 75%,#d4560a 100%);padding:28px 32px;text-align:center;">
+        <p style="margin:0;font-size:20px;font-weight:700;color:#fff;">STELLARIS AUTOMATION</p>
+        <p style="margin:6px 0 0;font-size:14px;color:rgba(255,255,255,.75);">Actualización de ticket de servicio</p>
+      </td></tr>
+      <tr><td style="padding:28px 32px;">
+        <p style="margin:0 0 16px;font-size:18px;font-weight:700;color:#1e293b;">${esc(numTicket)}</p>
+        <table style="width:100%;border-collapse:collapse;font-size:14px;">
+          <tr><td style="padding:8px 0;color:#64748b;width:160px;">Robot</td><td style="padding:8px 0;color:#0f172a;">${esc(robot)}</td></tr>
+          <tr><td style="padding:8px 0;color:#64748b;">Nuevo estado</td><td style="padding:8px 0;color:#0f172a;font-weight:700;">${esc(nuevoEstado)}</td></tr>
+          ${fechaProgramada ? `<tr><td style="padding:8px 0;color:#64748b;">Fecha programada</td><td style="padding:8px 0;color:#0f172a;">${esc(fechaProgramada)}</td></tr>` : ''}
+        </table>
+        <div style="margin-top:16px;padding:12px 16px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;">
+          <p style="margin:0 0 4px;font-size:12px;color:#64748b;">Motivo / Comentario del equipo técnico</p>
+          <p style="margin:0;font-size:14px;color:#1e293b;">${esc(motivo).replace(/\n/g, '<br>')}</p>
+        </div>
+        <p style="margin:20px 0 0;font-size:11px;color:#94a3b8;text-align:center;">
+          Notificación automática de Stellaris Automation — contacto@soldaduras.com.mx
+        </p>
+      </td></tr>
+    </table>
+  </td></tr></table>
+</body></html>`;
+}
 
 // ─── PATCH /api/admin/cotizaciones/:id ───────────────────────────────────────
 

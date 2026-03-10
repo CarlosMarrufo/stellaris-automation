@@ -31,7 +31,7 @@ import { getGraphToken, sendMailViaGraph, esc, graphConfigured } from './lib/gra
 import authRoutes        from './routes/auth.js';
 import robotRoutes       from './routes/robots.js';
 import refaccionRoutes   from './routes/refacciones.js';
-import ticketRoutes      from './routes/tickets.js';
+import ticketRoutes, { checkEscalation } from './routes/tickets.js';
 import cotizacionRoutes  from './routes/cotizaciones.js';
 import adminRoutes       from './routes/admin.js';
 
@@ -304,6 +304,13 @@ app.use((req, res) => {
 // El puerto 4000 NO debe estar expuesto al exterior — solo Apache accede a él.
 const server = app.listen(parseInt(PORT, 10), '127.0.0.1', () => {
   console.log(`[server] Stellaris API escuchando en http://127.0.0.1:${PORT} (${NODE_ENV})`);
+
+  // Escalation check: runs every hour to detect unattended tickets created today
+  setInterval(() => {
+    checkEscalation().catch((err) =>
+      console.error('[escalation/interval]', err instanceof Error ? err.message : String(err))
+    );
+  }, 60 * 60 * 1000).unref();
 });
 
 // ─── Graceful shutdown ────────────────────────────────────────────────────────

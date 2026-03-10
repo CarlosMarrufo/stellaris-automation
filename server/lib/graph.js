@@ -52,14 +52,17 @@ export async function getGraphToken() {
 
 /**
  * @param {string} accessToken
- * @param {{ to: string, replyTo?: { name?: string, address: string } | null, subject: string, html: string }} opts
+ * @param {{ to: string|string[], cc?: string|string[], replyTo?: { name?: string, address: string } | null, subject: string, html: string }} opts
  */
-export async function sendMailViaGraph(accessToken, { to, replyTo, subject, html }) {
+export async function sendMailViaGraph(accessToken, { to, cc, replyTo, subject, html }) {
+  const toArr = Array.isArray(to) ? to : [to];
+  const ccArr = cc ? (Array.isArray(cc) ? cc : [cc]) : [];
   const payload = {
     message: {
       subject,
       body: { contentType: 'HTML', content: html },
-      toRecipients: [{ emailAddress: { address: to } }],
+      toRecipients: toArr.map((addr) => ({ emailAddress: { address: addr } })),
+      ...(ccArr.length > 0 ? { ccRecipients: ccArr.map((addr) => ({ emailAddress: { address: addr } })) } : {}),
       ...(replyTo ? { replyTo: [{ emailAddress: replyTo }] } : {}),
     },
     saveToSentItems: true,

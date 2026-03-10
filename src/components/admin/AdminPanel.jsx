@@ -1,4 +1,5 @@
 import React from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { LogOut, Users, Package, FileText, ClipboardList } from 'lucide-react';
@@ -8,7 +9,41 @@ import RefaccionesAdminTab  from './RefaccionesAdminTab';
 import TicketsAdminTab      from './TicketsAdminTab';
 import CotizacionesAdminTab from './CotizacionesAdminTab';
 
+function PendingDot() {
+  return (
+    <span className="ml-1.5 inline-flex items-center justify-center w-4 h-4 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
+      !
+    </span>
+  );
+}
+
 export default function AdminPanel({ user, onLogout }) {
+  // Light queries just to count pending items for tab badges
+  const { data: tickets = [] } = useQuery({
+    queryKey: ['admin-tickets'],
+    queryFn: async () => {
+      const res = await fetch('/api/admin/tickets', { credentials: 'include' });
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
+  const { data: cotizaciones = [] } = useQuery({
+    queryKey: ['admin-cotizaciones'],
+    queryFn: async () => {
+      const res = await fetch('/api/admin/cotizaciones', { credentials: 'include' });
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
+  const ticketsPendientes = tickets.filter((t) => {
+    const lc = (t.estado ?? '').toLowerCase();
+    return lc.includes('abiert');
+  }).length;
+
+  const cotizacionesPendientes = cotizaciones.filter((c) => c.estado === 'pendiente').length;
+
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
@@ -42,10 +77,12 @@ export default function AdminPanel({ user, onLogout }) {
             <TabsTrigger value="tickets" className="flex items-center gap-2 py-2.5 px-4">
               <FileText className="w-4 h-4" />
               <span>Tickets</span>
+              {ticketsPendientes > 0 && <PendingDot />}
             </TabsTrigger>
             <TabsTrigger value="cotizaciones" className="flex items-center gap-2 py-2.5 px-4">
               <ClipboardList className="w-4 h-4" />
               <span>Cotizaciones</span>
+              {cotizacionesPendientes > 0 && <PendingDot />}
             </TabsTrigger>
           </TabsList>
 

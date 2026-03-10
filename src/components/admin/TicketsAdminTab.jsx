@@ -5,9 +5,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import {
   AlertCircle, Clock, Calendar, Building2, Search,
-  ChevronDown, ChevronUp,
+  ChevronDown, ChevronUp, Save,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -34,6 +35,7 @@ export default function TicketsAdminTab() {
   const [filterCliente,   setFilterCliente]   = useState('todos');
   const [searchText,      setSearchText]      = useState('');
   const [expandedId,      setExpandedId]      = useState(null);
+  const [editState,       setEditState]       = useState({}); // { [ticketId]: { estado, fecha, motivo } }
 
   const { data: tickets = [], isLoading } = useQuery({
     queryKey: ['admin-tickets'],
@@ -54,17 +56,30 @@ export default function TicketsAdminTab() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, idEstadoSolicitud }) => {
+    mutationFn: async ({ id, idEstadoSolicitud, fechaProgramada, motivo }) => {
+      const body = { motivo };
+      if (idEstadoSolicitud !== undefined) body.idEstadoSolicitud = idEstadoSolicitud;
+      if (fechaProgramada !== undefined)   body.fechaProgramada = fechaProgramada || null;
       const res = await fetch(`/api/admin/tickets/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ idEstadoSolicitud }),
+        body: JSON.stringify(body),
       });
-      if (!res.ok) throw new Error('Error al actualizar');
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error ?? 'Error al actualizar');
+      }
       return res.json();
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-tickets'] }),
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-tickets'] });
+      setEditState((prev) => {
+        const next = { ...prev };
+        delete next[vars.id];
+        return next;
+      });
+    },
   });
 
   // Unique clients for filter
@@ -250,30 +265,89 @@ export default function TicketsAdminTab() {
                       </div>
                     )}
 
-                    {/* Change status */}
-                    {catalogos?.estados && (
-                      <div className="flex items-center gap-3 pt-2 border-t border-slate-200">
-                        <span className="text-sm text-slate-600">Cambiar estado:</span>
-                        <Select
-                          value={String(ticket.idEstadoSolicitud)}
-                          onValueChange={(v) => updateMutation.mutate({ id: ticket.id, idEstadoSolicitud: Number(v) })}
-                        >
-                          <SelectTrigger className="w-48">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {catalogos.estados.map((e) => (
-                              <SelectItem key={e.idEstadoSolicitud} value={String(e.idEstadoSolicitud)}>
-                                {e.estado}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        {updateMutation.isPending && (
-                          <span className="text-xs text-slate-400">Guardando...</span>
-                        )}
-                      </div>
-                    )}
+                    {/* Admin actions: change status + confirm fecha + motivo */}
+                    {catalogos?.estados && (() => {
+                      const es = editState[ticket.id] ?? {
+                        estado: String(ticket.idEstadoSolicitud),
+                        fecha:  ticket.fechaProgramada ?? '',
+                        motivo: '',
+                      };
+                      const updateField = (field, value) =>
+                        setEditState((prev) => ({
+                          ...prev,
+                          [ticket.id]: { ...es, ...prev[ticket.id], [field]: value },
+                        }));
+                      const current = editState[ticket.id] ?? es;
+                      const canSave = current.motivo?.trim().length > 0;
+
+                      return (
+                        <div className="pt-3 border-t border-slate-200 space-y-3">
+                          <div className="flex flex-wrap items-center gap-3">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm text-slate-600">Estado:</span>
+                              <Select
+                                value={current.estado}
+                                onValueChange={(v) => updateField('estado', v)}
+                              >
+                                <SelectTrigger className="w-44">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {catalogos.estados.map((e) => (
+                                    <SelectItem key={e.idEstadoSolicitud} value={String(e.idEstadoSolicitud)}>
+                                      {e.estado}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm text-slate-600">Fecha programada:</span>
+                              <Input
+                                type="date"
+                                value={current.fecha}
+                                onChange={(e) => updateField('fecha', e.target.value)}
+                                className="w-44"
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <p className="text-xs text-slate-500 mb-1">Motivo / Comentario (requerido)</p>
+                            <Textarea
+                              value={current.motivo}
+                              onChange={(e) => updateField('motivo', e.target.value)}
+                              rows={2}
+                              className="text-sm"
+                              placeholder="Ingrese el motivo del cambio..."
+                            />
+                          </div>
+
+                          <div className="flex items-center gap-3">
+                            <Button
+                              size="sm"
+                              disabled={!canSave || updateMutation.isPending}
+                              onClick={() => updateMutation.mutate({
+                                id: ticket.id,
+                                idEstadoSolicitud: Number(current.estado),
+                                fechaProgramada: current.fecha || null,
+                                motivo: current.motivo.trim(),
+                              })}
+                              className="bg-blue-600 hover:bg-blue-700"
+                            >
+                              <Save className="w-3.5 h-3.5 mr-1.5" />
+                              {updateMutation.isPending ? 'Guardando...' : 'Guardar Cambios'}
+                            </Button>
+                            {!canSave && (
+                              <span className="text-xs text-amber-600">Ingrese un motivo para guardar</span>
+                            )}
+                            {updateMutation.isError && (
+                              <span className="text-xs text-red-600">{updateMutation.error?.message}</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
               </Card>

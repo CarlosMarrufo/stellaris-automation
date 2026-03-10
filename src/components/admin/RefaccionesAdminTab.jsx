@@ -142,18 +142,12 @@ export default function RefaccionesAdminTab() {
 
   return (
     <div className="space-y-6">
-      {/* Stock bajo alert */}
+      {/* Stock bajo hint */}
       {refaccionesBajoStock.length > 0 && (
-        <Card className="border-orange-200 bg-orange-50">
-          <CardHeader>
-            <div className="flex items-center gap-2 text-orange-900">
-              <AlertTriangle className="w-5 h-5" />
-              <span className="font-semibold text-base">
-                Refacciones con Stock Bajo ({refaccionesBajoStock.length} en esta página)
-              </span>
-            </div>
-          </CardHeader>
-        </Card>
+        <div className="flex items-center gap-1.5 text-xs text-orange-600">
+          <AlertTriangle className="w-3.5 h-3.5" />
+          <span>{refaccionesBajoStock.length} con stock bajo en esta página</span>
+        </div>
       )}
 
       {/* Filters */}

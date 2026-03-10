@@ -2,14 +2,17 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AlertCircle, Clock, User, Calendar } from 'lucide-react';
+import { AlertCircle, Clock, User, Calendar, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import CrearTicketPanel from './CrearTicketPanel';
 
 export default function TicketsPendientesTab() {
   const [filterEstado,    setFilterEstado]    = useState('todos');
   const [filterPrioridad, setFilterPrioridad] = useState('todas');
+  const [ticketOpen,      setTicketOpen]      = useState(false);
 
   const { data: tickets = [], isLoading } = useQuery({
     queryKey: ['tickets'],
@@ -51,6 +54,15 @@ export default function TicketsPendientesTab() {
 
   return (
     <div className="space-y-6">
+      {/* Header + Crear Ticket */}
+      <div className="flex items-center justify-between">
+        <div />
+        <Button onClick={() => setTicketOpen(true)} className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2">
+          <Plus className="w-4 h-4" />
+          Nuevo Ticket
+        </Button>
+      </div>
+
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
@@ -205,6 +217,11 @@ export default function TicketsPendientesTab() {
           ))
         )}
       </div>
+
+      <CrearTicketPanel
+        open={ticketOpen}
+        onClose={() => setTicketOpen(false)}
+      />
     </div>
   );
 }

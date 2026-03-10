@@ -2,13 +2,15 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import {
   Activity, Calendar, Clock, TrendingUp,
-  ChevronDown, ChevronUp, Wrench,
+  ChevronDown, ChevronUp, Wrench, FileText,
 } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
+import CrearTicketPanel from './CrearTicketPanel';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -77,7 +79,7 @@ function calcularEdadRobot(fechaInstalacion) {
 
 // ─── VidaRobotCard ───────────────────────────────────────────────────────────
 
-function VidaRobotCard({ robot }) {
+function VidaRobotCard({ robot, onCrearTicket }) {
   const [expanded, setExpanded] = useState(false);
   const saludScore = calcularSaludGeneral(robot);
   const edad = calcularEdadRobot(robot.fecha_instalacion);
@@ -256,6 +258,18 @@ function VidaRobotCard({ robot }) {
             </div>
           )}
 
+          {/* Crear Ticket */}
+          <div className="px-5 py-3 border-t border-slate-100 bg-white flex justify-end">
+            <Button
+              size="sm"
+              onClick={() => onCrearTicket(robot)}
+              className="bg-blue-600 hover:bg-blue-700 flex items-center gap-1.5"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              Crear Ticket
+            </Button>
+          </div>
+
           {/* ─── Historial de Mantenimientos ─── */}
           <div className="px-5 pb-5 border-t border-slate-100 bg-white">
             <div className="flex items-center gap-2 py-4">
@@ -356,6 +370,9 @@ function VidaRobotCard({ robot }) {
 // ─── ResumenVidaTab ──────────────────────────────────────────────────────────
 
 export default function ResumenVidaTab() {
+  const [ticketOpen, setTicketOpen] = useState(false);
+  const [selectedRobotId, setSelectedRobotId] = useState(null);
+
   const { data: robots = [], isLoading } = useQuery({
     queryKey: ['robots'],
     queryFn: async () => {
@@ -365,6 +382,11 @@ export default function ResumenVidaTab() {
     },
     select: (data) => Array.isArray(data) ? data : [],
   });
+
+  const handleCrearTicket = (robot) => {
+    setSelectedRobotId(robot.id);
+    setTicketOpen(true);
+  };
 
   if (isLoading) {
     return (
@@ -394,10 +416,16 @@ export default function ResumenVidaTab() {
       ) : (
         <div className="space-y-2">
           {robots.map((robot) => (
-            <VidaRobotCard key={robot.id} robot={robot} />
+            <VidaRobotCard key={robot.id} robot={robot} onCrearTicket={handleCrearTicket} />
           ))}
         </div>
       )}
+
+      <CrearTicketPanel
+        open={ticketOpen}
+        onClose={() => setTicketOpen(false)}
+        preselectedRobotId={selectedRobotId}
+      />
     </div>
   );
 }
